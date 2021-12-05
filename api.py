@@ -1,11 +1,9 @@
 from flask import Flask
 from flask_restful import Resource, Api, reqparse, abort, marshal, fields
 
-# Initialize Flask - Web Framework
 app = Flask(__name__)
 api = Api(app)
 
-# A List of Dicts to store all of the books
 uporabniki = [{
     "id": 1,
     "ime": "Peter",
@@ -20,7 +18,6 @@ uporabniki = [{
 }
 ]
 
-# Schema For the Book Request JSON
 uporabnikiFields = {
     "id": fields.Integer,
     "ime": fields.String,
@@ -28,10 +25,8 @@ uporabnikiFields = {
     "uporabnisko_ime": fields.String,
 }
 
-# CRUD operations - create, read, update, delete 
 class Uporabnik(Resource):
     def __init__(self):
-        # Initialize The Flask Request Parser and add arguments as in an expected request
         self.reqparse = reqparse.RequestParser()
         self.reqparse.add_argument("ime", type=str, location="json")
         self.reqparse.add_argument("priimek", type=str, location="json")
@@ -39,7 +34,6 @@ class Uporabnik(Resource):
 
         super(Uporabnik, self).__init__()
 
-    # GET - Returns a single book object given a matching id
     def get(self, id):
         uporabnik = [uporabnik for uporabnik in uporabniki if uporabnik['id'] == id]
 
@@ -48,7 +42,6 @@ class Uporabnik(Resource):
 
         return{"uporabnik": marshal(uporabnik[0], uporabnikiFields)}
 
-    # PUT - Given an id
     def put(self, id):
         uporabnik = [uporabnik for uporabnik in uporabniki if uporabnik['id'] == id]
 
@@ -57,7 +50,6 @@ class Uporabnik(Resource):
 
         uporabnik = uporabnik[0]
 
-        # Loop Through all the passed agruments
         args = self.reqparse.parse_args()
         for k, v in args.items():
             # Check if the passed value is not null
