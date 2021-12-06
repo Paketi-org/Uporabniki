@@ -57,7 +57,7 @@ class Uporabnik(Resource):
                 # if not, set the element in the books dict with the 'k' object to the value provided in the request.
                 uporabnik[k] = v
 
-        return{"uporabnik": marshal(uporabnik, uporabnikFields)}
+        return{"uporabnik": marshal(uporabnik, uporabnikiFields)}
 
     def delete(self, id):
         uporabnik = [uporabnik for uporabnik in uporabniki if uporabnik['id'] == id]
