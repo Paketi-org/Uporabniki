@@ -1,0 +1,22 @@
+version: "3.9"
+services:
+   db:
+      image: "postgres:13"
+      ports: 
+      - "5432:5432"
+      environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_DB=paketiorg
+      - POSTGRES_PASSWORD=rsopass
+      networks:
+         node_net:
+            ipv4_address: 172.27.1.4
+   app:
+      image: tp7220/uporabniki
+
+networks:
+  node_net:
+    ipam:
+      driver: default
+      config:
+        - subnet: 172.27.0.0/16

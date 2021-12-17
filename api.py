@@ -1,103 +1,151 @@
 from flask import Flask
 from flask_restful import Resource, Api, reqparse, abort, marshal, fields
+from configparser import ConfigParser
+import psycopg2 as pg
 
 app = Flask(__name__)
 api = Api(app)
 
-uporabniki = [{
-    "id": 1,
-    "ime": "Peter",
-    "priimek": "Skala",
-    "uporabnisko_ime": "ps4348",
-},
-    {
-    "id": 2,
-    "ime": "Tim",
-    "priimek": "Melan",
-    "uporabnisko_ime": "tm1318",
-}
-]
-
-uporabnikiFields = {
+narocnikiPolja = {
     "id": fields.Integer,
     "ime": fields.String,
     "priimek": fields.String,
     "uporabnisko_ime": fields.String,
+    "telefonska_stevilka": fields.String,
 }
 
-class Uporabnik(Resource):
-    def __init__(self):
-        self.reqparse = reqparse.RequestParser()
-        self.reqparse.add_argument("ime", type=str, location="json")
-        self.reqparse.add_argument("priimek", type=str, location="json")
-        self.reqparse.add_argument("uporabnisko_ime", type=str, location="json")
+class Narocnik(Resource):
+    def __init__(self, config_file='database.ini', section='postgresql'):
+        self.table_name = 'narocniki'
+        self.db = self.get_config(config_file, section)
+        self.conn = pg.connect(**self.db)
+        self.cur = self.conn.cursor()
 
-        super(Uporabnik, self).__init__()
+        self.parser = reqparse.RequestParser()
+        self.parser.add_argument("id", type=int)
+        self.parser.add_argument("ime", type=str)
+        self.parser.add_argument("priimek", type=str)
+        self.parser.add_argument("uporabnisko_ime", type=str)
+        self.parser.add_argument("telefonska_stevilka", type=str)
+
+        super(Narocnik, self).__init__()
+
+    def get_config(self, config_file, section):
+        self.parser = ConfigParser()
+        self.parser.read(config_file)
+        db = {}
+        if self.parser.has_section(section):
+            params = self.parser.items(section)
+            for param in params:
+                db[param[0]] = param[1]
+        else:
+            raise Exception('Section {0} not found in the {1} file'.format(section, config_file))
+
+        return db
 
     def get(self, id):
-        uporabnik = [uporabnik for uporabnik in uporabniki if uporabnik['id'] == id]
+        self.cur.execute("SELECT * FROM narocniki WHERE id = %s" % str(id))
+        row = self.cur.fetchall()
 
-        if(len(uporabnik) == 0):
+        if(len(row) == 0):
             abort(404)
 
-        return{"uporabnik": marshal(uporabnik[0], uporabnikiFields)}
+        d = {}
+        for el, k in zip(row[0], narocnikiPolja):
+            d[k] = el
 
-    def put(self, id):
-        uporabnik = [uporabnik for uporabnik in uporabniki if uporabnik['id'] == id]
-
-        if len(uporabnik) == 0:
-            abort(404)
-
-        uporabnik = uporabnik[0]
-
-        args = self.reqparse.parse_args()
-        for k, v in args.items():
-            # Check if the passed value is not null
-            if v is not None:
-                # if not, set the element in the books dict with the 'k' object to the value provided in the request.
-                uporabnik[k] = v
-
-        return{"uporabnik": marshal(uporabnik, uporabnikiFields)}
+        return{"narocnik": marshal(d, narocnikiPolja)}
 
     def delete(self, id):
-        uporabnik = [uporabnik for uporabnik in uporabniki if uporabnik['id'] == id]
+        self.cur.execute("SELECT * FROM narocniki")
+        rows = self.cur.fetchall()
+        ids = []
+        for row in rows:
+            ids.append(row[0])
 
-        if(len(uporabnik) == 0):
+        if id not in ids:
             abort(404)
-
-        uporabniki.remove(uporabnik[0])
+        else:
+            self.cur.execute("DELETE FROM narocniki WHERE id = %s" % str(id))
+            self.conn.commit()
 
         return 201
 
 
-class ListUporabnikov(Resource):
-    def __init__(self):
-        self.reqparse = reqparse.RequestParser()
-        self.reqparse.add_argument(
-            "ime", type=str, required=True, help="Ime uporabnika", location="json")
-        self.reqparse.add_argument(
-            "priimek", type=str, required=True, help="Priimek uporabnika", location="json")
-        self.reqparse.add_argument(
-            "uporabnisko_ime", type=str, required=True, help="Uporabnisko ime uporabnika", location="json")
+
+class ListNarocnikov(Resource):
+    def __init__(self, config_file='database.ini', section='postgresql'):
+        self.table_name = 'narocniki'
+        self.db = self.get_config(config_file, section)
+        self.conn = pg.connect(**self.db)
+        self.cur = self.conn.cursor()
+        self.cur.execute("select exists(select * from information_schema.tables where table_name=%s)", (self.table_name,))
+        if self.cur.fetchone()[0]:
+            print("Table {0} already exists".format(self.table_name))
+        else:
+            self.cur.execute('''CREATE TABLE narocniki (
+                                id INT NOT NULL,
+                                ime CHAR(10),
+                                priimek CHAR(15),
+                                uporabnisko_ime CHAR(10),
+                                telefonska_stevilka CHAR(20)
+                             )''')
+
+        self.parser = reqparse.RequestParser()
+        self.parser.add_argument("id", type=int)
+        self.parser.add_argument("ime", type=str)
+        self.parser.add_argument("priimek", type=str)
+        self.parser.add_argument("uporabnisko_ime", type=str)
+        self.parser.add_argument("telefonska_stevilka", type=str)
+
+    def get_config(self, config_file, section):
+        self.parser = ConfigParser()
+        self.parser.read(config_file)
+        db = {}
+        if self.parser.has_section(section):
+            params = self.parser.items(section)
+            for param in params:
+                db[param[0]] = param[1]
+        else:
+            raise Exception('Section {0} not found in the {1} file'.format(section, config_file))
+
+        return db
 
     def get(self):
-        return{"uporabniki": [marshal(uporabnik, uporabnikiFields) for uporabnik in uporabniki]}
+        self.cur.execute("SELECT * FROM narocniki")
+        rows = self.cur.fetchall()
+        ds = {}
+        i = 0
+        for row in rows:
+            ds[i] = {}
+            for el, k in zip(row, narocnikiPolja):
+                ds[i][k] = el
+            i += 1
+
+        return{"narocniki": [marshal(d, narocnikiPolja) for d in ds.values()]}
+
 
     def post(self):
-        args = self.reqparse.parse_args()
-        uporabnik = {
-            "id": uporabniki[-1]['id'] + 1 if len(uporabniki) > 0 else 1,
+        args = self.parser.parse_args()
+        values = []
+        for a in args.values():
+            values.append(a)
+        self.cur.execute('''INSERT INTO {0} (id, ime, priimek, uporabnisko_ime, telefonska_stevilka)
+                VALUES ({1}, '{2}', '{3}', '{4}', '{5}')'''.format('narocniki', *values))
+        self.conn.commit()
+        narocnik = {
+            "id": args["id"],
             "ime": args["ime"],
             "priimek": args["priimek"],
             "uporabnisko_ime": args["uporabnisko_ime"],
+            "telefonska_stevika": args["telefonska_stevilka"],
         }
 
-        uporabniki.append(uporabnik)
-        return{"uporabnik": marshal(uporabnik, uporabnikiFields)}, 201
+        return{"narocnik": marshal(narocnik, narocnikiPolja)}, 201
 
 
-api.add_resource(ListUporabnikov, "/uporabniki")
-api.add_resource(Uporabnik, "/uporabniki/<int:id>")
+api.add_resource(ListNarocnikov, "/narocniki")
+api.add_resource(Narocnik, "/narocniki/<int:id>")
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000)
