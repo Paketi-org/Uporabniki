@@ -15,10 +15,13 @@ services:
       image: "tp7220/uporabniki:latest"
       ports:
       - "5000:5000"
+      networks:
+         node_net:
+            ipv4_address: 172.27.1.3
 
 networks:
   node_net:
     ipam:
       driver: default
       config:
-        - subnet: 172.27.0.0/16
+        - subnet: 172.27.1.0/16

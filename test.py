@@ -1,6 +1,6 @@
 import requests
 
-BASE = "http://localhost:5000/"
+BASE = "http://172.27.1.3:5000/"
 
 r1 = requests.get(BASE + "/narocniki")
 print(r1.json())

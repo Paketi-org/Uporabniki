@@ -121,7 +121,7 @@ class ListNarocnikov(Resource):
             for el, k in zip(row, narocnikiPolja):
                 ds[i][k] = el
             i += 1
-
+            
         return{"narocniki": [marshal(d, narocnikiPolja) for d in ds.values()]}
 
 
