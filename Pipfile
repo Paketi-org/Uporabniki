@@ -7,6 +7,8 @@ name = "pypi"
 flask = "*"
 flask-restful = "*"
 psycopg2-binary = "*"
+py-healthcheck = "*"
+requests = "*"
 
 [dev-packages]
 

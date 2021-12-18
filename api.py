@@ -2,9 +2,12 @@ from flask import Flask
 from flask_restful import Resource, Api, reqparse, abort, marshal, fields
 from configparser import ConfigParser
 import psycopg2 as pg
+from psycopg2 import extensions
+from healthcheck import HealthCheck, EnvironmentDump
 
 app = Flask(__name__)
 api = Api(app)
+health = HealthCheck()
 
 narocnikiPolja = {
     "id": fields.Integer,
@@ -29,6 +32,16 @@ class Narocnik(Resource):
         self.parser.add_argument("telefonska_stevilka", type=str)
 
         super(Narocnik, self).__init__()
+
+    # define a function that parses the connection's poll() response
+    def check_database_connection(self):
+        if self.conn.poll() == extensions.POLL_OK:
+            print ("POLL: POLL_OK")
+        if self.conn.poll() == extensions.POLL_READ:
+            print ("POLL: POLL_READ")
+        if self.conn.poll() == extensions.POLL_WRITE:
+            print ("POLL: POLL_WRITE")
+        return True, "Database connection OK"
 
     def get_config(self, config_file, section):
         self.parser = ConfigParser()
@@ -111,6 +124,16 @@ class ListNarocnikov(Resource):
 
         return db
 
+    # define a function that parses the connection's poll() response
+    def check_database_connection(self):
+        if self.conn.poll() == extensions.POLL_OK:
+            print ("POLL: POLL_OK")
+        if self.conn.poll() == extensions.POLL_READ:
+            print ("POLL: POLL_READ")
+        if self.conn.poll() == extensions.POLL_WRITE:
+            print ("POLL: POLL_WRITE")
+        return True, "Database connection OK"
+
     def get(self):
         self.cur.execute("SELECT * FROM narocniki")
         rows = self.cur.fetchall()
@@ -144,6 +167,9 @@ class ListNarocnikov(Resource):
         return{"narocnik": marshal(narocnik, narocnikiPolja)}, 201
 
 
+health.add_check(Narocnik.check_database_connection)
+health.add_check(ListNarocnikov.check_database_connection)
+app.add_url_rule("/healthcheck", "healthcheck", view_func=lambda: health.run())
 api.add_resource(ListNarocnikov, "/narocniki")
 api.add_resource(Narocnik, "/narocniki/<int:id>")
 
