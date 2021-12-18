@@ -33,16 +33,6 @@ class Narocnik(Resource):
 
         super(Narocnik, self).__init__()
 
-    # define a function that parses the connection's poll() response
-    def check_database_connection(self):
-        if self.conn.poll() == extensions.POLL_OK:
-            print ("POLL: POLL_OK")
-        if self.conn.poll() == extensions.POLL_READ:
-            print ("POLL: POLL_READ")
-        if self.conn.poll() == extensions.POLL_WRITE:
-            print ("POLL: POLL_WRITE")
-        return True, "Database connection OK"
-
     def get_config(self, config_file, section):
         self.parser = ConfigParser()
         self.parser.read(config_file)
@@ -124,16 +114,6 @@ class ListNarocnikov(Resource):
 
         return db
 
-    # define a function that parses the connection's poll() response
-    def check_database_connection(self):
-        if self.conn.poll() == extensions.POLL_OK:
-            print ("POLL: POLL_OK")
-        if self.conn.poll() == extensions.POLL_READ:
-            print ("POLL: POLL_READ")
-        if self.conn.poll() == extensions.POLL_WRITE:
-            print ("POLL: POLL_WRITE")
-        return True, "Database connection OK"
-
     def get(self):
         self.cur.execute("SELECT * FROM narocniki")
         rows = self.cur.fetchall()
@@ -167,8 +147,19 @@ class ListNarocnikov(Resource):
         return{"narocnik": marshal(narocnik, narocnikiPolja)}, 201
 
 
-health.add_check(Narocnik.check_database_connection)
-health.add_check(ListNarocnikov.check_database_connection)
+# define a function that parses the connection's poll() response
+def check_database_connection():
+    db = self.get_config('database.ini', 'postgresql')
+    conn = pg.connect(**db)
+    if conn.poll() == extensions.POLL_OK:
+        print ("POLL: POLL_OK")
+    if conn.poll() == extensions.POLL_READ:
+        print ("POLL: POLL_READ")
+    if conn.poll() == extensions.POLL_WRITE:
+        print ("POLL: POLL_WRITE")
+    return True, "Database connection OK"
+
+health.add_check(check_database_connection)
 app.add_url_rule("/healthcheck", "healthcheck", view_func=lambda: health.run())
 api.add_resource(ListNarocnikov, "/narocniki")
 api.add_resource(Narocnik, "/narocniki/<int:id>")
