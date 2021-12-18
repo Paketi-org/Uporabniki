@@ -5,10 +5,19 @@ import psycopg2 as pg
 from psycopg2 import extensions
 from healthcheck import HealthCheck, EnvironmentDump
 
-app = Flask(__name__)
-api = Api(app)
-health = HealthCheck()
-envdump = EnvironmentDump()
+def create_app():
+    app = Flask(__name__)
+    api = Api(app)
+    health = HealthCheck()
+    envdump = EnvironmentDump()
+    health.add_check(check_database_connection)
+    envdump.add_section("application", application_data)
+    app.add_url_rule("/healthcheck", "healthcheck", view_func=lambda: health.run())
+    app.add_url_rule("/environment", "environment", view_func=lambda: envdump.run())
+    api.add_resource(ListNarocnikov, "/narocniki")
+    api.add_resource(Narocnik, "/narocniki/<int:id>")
+
+    return app
 
 def get_config(config_file, section):
     parser = ConfigParser()
@@ -150,12 +159,6 @@ class ListNarocnikov(Resource):
         return{"narocnik": marshal(narocnik, narocnikiPolja)}, 201
 
 
-health.add_check(check_database_connection)
-envdump.add_section("application", application_data)
-app.add_url_rule("/healthcheck", "healthcheck", view_func=lambda: health.run())
-app.add_url_rule("/environment", "environment", view_func=lambda: envdump.run())
-api.add_resource(ListNarocnikov, "/narocniki")
-api.add_resource(Narocnik, "/narocniki/<int:id>")
-
 if __name__ == "__main__":
+    app = create_app()
     app.run(host="0.0.0.0", port=5000)
