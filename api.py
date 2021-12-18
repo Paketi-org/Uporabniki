@@ -14,6 +14,8 @@ narocnikiPolja = {
     "telefonska_stevilka": fields.String,
 }
 
+ID = 0
+
 class Narocnik(Resource):
     def __init__(self, config_file='database.ini', section='postgresql'):
         self.table_name = 'narocniki'
@@ -22,7 +24,6 @@ class Narocnik(Resource):
         self.cur = self.conn.cursor()
 
         self.parser = reqparse.RequestParser()
-        self.parser.add_argument("id", type=int)
         self.parser.add_argument("ime", type=str)
         self.parser.add_argument("priimek", type=str)
         self.parser.add_argument("uporabnisko_ime", type=str)
@@ -67,6 +68,7 @@ class Narocnik(Resource):
             abort(404)
         else:
             self.cur.execute("DELETE FROM narocniki WHERE id = %s" % str(id))
+            ID -= 1
             self.conn.commit()
 
         return 201
@@ -92,7 +94,6 @@ class ListNarocnikov(Resource):
                              )''')
 
         self.parser = reqparse.RequestParser()
-        self.parser.add_argument("id", type=int)
         self.parser.add_argument("ime", type=str)
         self.parser.add_argument("priimek", type=str)
         self.parser.add_argument("uporabnisko_ime", type=str)
@@ -128,13 +129,15 @@ class ListNarocnikov(Resource):
     def post(self):
         args = self.parser.parse_args()
         values = []
+        ID += 1
+        values.append(ID)
         for a in args.values():
             values.append(a)
         self.cur.execute('''INSERT INTO {0} (id, ime, priimek, uporabnisko_ime, telefonska_stevilka)
                 VALUES ({1}, '{2}', '{3}', '{4}', '{5}')'''.format('narocniki', *values))
         self.conn.commit()
         narocnik = {
-            "id": args["id"],
+            "id": ID,
             "ime": args["ime"],
             "priimek": args["priimek"],
             "uporabnisko_ime": args["uporabnisko_ime"],
