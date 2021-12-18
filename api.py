@@ -8,6 +8,7 @@ from healthcheck import HealthCheck, EnvironmentDump
 app = Flask(__name__)
 api = Api(app)
 health = HealthCheck()
+envdump = EnvironmentDump()
 
 def get_config(config_file, section):
     parser = ConfigParser()
@@ -22,7 +23,6 @@ def get_config(config_file, section):
 
     return db
 
-# define a function that parses the connection's poll() response
 def check_database_connection():
     db = get_config('database.ini', 'postgresql')
     conn = pg.connect(**db)
@@ -33,6 +33,10 @@ def check_database_connection():
     if conn.poll() == extensions.POLL_WRITE:
         print ("POLL: POLL_WRITE")
     return True, "Database connection OK"
+
+def application_data():
+    return {"maintainer": "Teodor Janez Podobnik",
+            "git_repo": "https://github.com/Paketi-org/Uporabniki.git"}
 
 narocnikiPolja = {
     "id": fields.Integer,
@@ -147,7 +151,9 @@ class ListNarocnikov(Resource):
 
 
 health.add_check(check_database_connection)
+envdump.add_section("application", application_data)
 app.add_url_rule("/healthcheck", "healthcheck", view_func=lambda: health.run())
+app.add_url_rule("/environment", "environment", view_func=lambda: envdump.run())
 api.add_resource(ListNarocnikov, "/narocniki")
 api.add_resource(Narocnik, "/narocniki/<int:id>")
 

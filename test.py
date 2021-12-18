@@ -32,3 +32,7 @@ r6 = requests.get(BASE + "/narocniki/4")
 print(r6.json())
 
 r6 = requests.get(BASE + "/healthcheck")
+print(r6.json())
+
+r6 = requests.get(BASE + "/environment")
+print(r6.json())
