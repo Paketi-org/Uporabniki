@@ -9,6 +9,31 @@ app = Flask(__name__)
 api = Api(app)
 health = HealthCheck()
 
+def get_config(config_file, section):
+    parser = ConfigParser()
+    parser.read(config_file)
+    db = {}
+    if parser.has_section(section):
+        params = parser.items(section)
+        for param in params:
+            db[param[0]] = param[1]
+    else:
+        raise Exception('Section {0} not found in the {1} file'.format(section, config_file))
+
+    return db
+
+# define a function that parses the connection's poll() response
+def check_database_connection():
+    db = get_config('database.ini', 'postgresql')
+    conn = pg.connect(**db)
+    if conn.poll() == extensions.POLL_OK:
+        print ("POLL: POLL_OK")
+    if conn.poll() == extensions.POLL_READ:
+        print ("POLL: POLL_READ")
+    if conn.poll() == extensions.POLL_WRITE:
+        print ("POLL: POLL_WRITE")
+    return True, "Database connection OK"
+
 narocnikiPolja = {
     "id": fields.Integer,
     "ime": fields.String,
@@ -20,7 +45,7 @@ narocnikiPolja = {
 class Narocnik(Resource):
     def __init__(self, config_file='database.ini', section='postgresql'):
         self.table_name = 'narocniki'
-        self.db = self.get_config(config_file, section)
+        self.db = get_config(config_file, section)
         self.conn = pg.connect(**self.db)
         self.cur = self.conn.cursor()
 
@@ -32,19 +57,6 @@ class Narocnik(Resource):
         self.parser.add_argument("telefonska_stevilka", type=str)
 
         super(Narocnik, self).__init__()
-
-    def get_config(self, config_file, section):
-        self.parser = ConfigParser()
-        self.parser.read(config_file)
-        db = {}
-        if self.parser.has_section(section):
-            params = self.parser.items(section)
-            for param in params:
-                db[param[0]] = param[1]
-        else:
-            raise Exception('Section {0} not found in the {1} file'.format(section, config_file))
-
-        return db
 
     def get(self, id):
         self.cur.execute("SELECT * FROM narocniki WHERE id = %s" % str(id))
@@ -79,7 +91,7 @@ class Narocnik(Resource):
 class ListNarocnikov(Resource):
     def __init__(self, config_file='database.ini', section='postgresql'):
         self.table_name = 'narocniki'
-        self.db = self.get_config(config_file, section)
+        self.db = get_config(config_file, section)
         self.conn = pg.connect(**self.db)
         self.cur = self.conn.cursor()
         self.cur.execute("select exists(select * from information_schema.tables where table_name=%s)", (self.table_name,))
@@ -100,19 +112,6 @@ class ListNarocnikov(Resource):
         self.parser.add_argument("priimek", type=str)
         self.parser.add_argument("uporabnisko_ime", type=str)
         self.parser.add_argument("telefonska_stevilka", type=str)
-
-    def get_config(self, config_file, section):
-        self.parser = ConfigParser()
-        self.parser.read(config_file)
-        db = {}
-        if self.parser.has_section(section):
-            params = self.parser.items(section)
-            for param in params:
-                db[param[0]] = param[1]
-        else:
-            raise Exception('Section {0} not found in the {1} file'.format(section, config_file))
-
-        return db
 
     def get(self):
         self.cur.execute("SELECT * FROM narocniki")
@@ -146,18 +145,6 @@ class ListNarocnikov(Resource):
 
         return{"narocnik": marshal(narocnik, narocnikiPolja)}, 201
 
-
-# define a function that parses the connection's poll() response
-def check_database_connection():
-    db = self.get_config('database.ini', 'postgresql')
-    conn = pg.connect(**db)
-    if conn.poll() == extensions.POLL_OK:
-        print ("POLL: POLL_OK")
-    if conn.poll() == extensions.POLL_READ:
-        print ("POLL: POLL_READ")
-    if conn.poll() == extensions.POLL_WRITE:
-        print ("POLL: POLL_WRITE")
-    return True, "Database connection OK"
 
 health.add_check(check_database_connection)
 app.add_url_rule("/healthcheck", "healthcheck", view_func=lambda: health.run())
