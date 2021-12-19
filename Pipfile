@@ -12,6 +12,7 @@ requests = "*"
 flask-unittest = "*"
 pytest = "*"
 dynaconf = "*"
+python-dotenv = "*"
 
 [dev-packages]
 

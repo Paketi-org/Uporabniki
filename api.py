@@ -59,7 +59,7 @@ class Narocnik(Resource):
     def __init__(self, config_file='database.ini', section='postgresql'):
         self.table_name = 'narocniki'
         self.db = get_config(config_file, section)
-        self.conn = pg.connect(**self.db)
+        self.conn = pg.connect('')
         self.cur = self.conn.cursor()
 
         self.parser = reqparse.RequestParser()
