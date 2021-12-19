@@ -5,9 +5,9 @@ services:
       ports: 
       - "5432:5432"
       environment:
-      - POSTGRES_USER=postgres
-      - POSTGRES_DB=paketiorg
-      - POSTGRES_PASSWORD=rsopass
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_DB=${POSTGRES_DB}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
       networks:
          node_net:
             ipv4_address: 172.27.1.4
