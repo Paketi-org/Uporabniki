@@ -19,22 +19,8 @@ def create_app():
 
     return app
 
-def get_config(config_file, section):
-    parser = ConfigParser()
-    parser.read(config_file)
-    db = {}
-    if parser.has_section(section):
-        params = parser.items(section)
-        for param in params:
-            db[param[0]] = param[1]
-    else:
-        raise Exception('Section {0} not found in the {1} file'.format(section, config_file))
-
-    return db
-
 def check_database_connection():
-    db = get_config('database.ini', 'postgresql')
-    conn = pg.connect(**db)
+    conn = pg.connect('')
     if conn.poll() == extensions.POLL_OK:
         print ("POLL: POLL_OK")
     if conn.poll() == extensions.POLL_READ:
@@ -56,9 +42,8 @@ narocnikiPolja = {
 }
 
 class Narocnik(Resource):
-    def __init__(self, config_file='database.ini', section='postgresql'):
+    def __init__(self):
         self.table_name = 'narocniki'
-        self.db = get_config(config_file, section)
         self.conn = pg.connect('')
         self.cur = self.conn.cursor()
 
@@ -102,10 +87,9 @@ class Narocnik(Resource):
 
 
 class ListNarocnikov(Resource):
-    def __init__(self, config_file='database.ini', section='postgresql'):
+    def __init__(self):
         self.table_name = 'narocniki'
-        self.db = get_config(config_file, section)
-        self.conn = pg.connect(**self.db)
+        self.conn = pg.connect('')
         self.cur = self.conn.cursor()
         self.cur.execute("select exists(select * from information_schema.tables where table_name=%s)", (self.table_name,))
         if self.cur.fetchone()[0]:
