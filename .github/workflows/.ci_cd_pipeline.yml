@@ -21,15 +21,6 @@ jobs:
          pip install -U pipenv
          pipenv install
 
-    - name: Build
-      id: docker_build
-      uses: docker/build-push-action@v2
-      with:
-        context: ./
-        file: ./Dockerfile
-        push: false
-        tags: ${{ secrets.DOCKER_HUB_USERNAME }}/uporabniki:latest
-
     - name: Run app
       run: docker-compose up -d
 
