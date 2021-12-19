@@ -10,6 +10,7 @@ psycopg2-binary = "*"
 py-healthcheck = "*"
 requests = "*"
 flask-unittest = "*"
+pytest = "*"
 
 [dev-packages]
 

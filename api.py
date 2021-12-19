@@ -97,7 +97,7 @@ class Narocnik(Resource):
             self.cur.execute("DELETE FROM narocniki WHERE id = %s" % str(id))
             self.conn.commit()
 
-        return 201
+        return 200
 
 
 
