@@ -10,6 +10,7 @@ class TestAPI(unittest.TestCase):
         self.BASE = "http://172.27.1.3:5000/"
         self.maxDiff = None
 
+    '''
     def test_post_narocniki(self):
         resp = requests.post(self.BASE + "/narocniki", {"id": 3, "ime": "Nikolina", "priimek": "Kraševka", "uporabnisko_ime": "nk_fuzine", "telefonska_stevilka": "999999999"})
         self.assertEqual(resp.status_code, 201)
@@ -17,6 +18,7 @@ class TestAPI(unittest.TestCase):
     def test_delete_narocnik(self):
         resp = requests.delete(self.BASE + "/narocniki/3")
         self.assertEqual(resp.status_code, 200)
+    '''
 
     def test_healthcheck(self):
         resp = requests.get(self.BASE + "/healthcheck")

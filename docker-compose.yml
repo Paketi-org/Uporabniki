@@ -12,7 +12,7 @@ services:
          node_net:
             ipv4_address: ${PGHOST}
    app:
-      image: "tp7220/uporabniki:v1"
+      image: "tp7220/uporabniki:latest"
       ports:
       - "5000:5000"
       networks:
