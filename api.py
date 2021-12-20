@@ -4,10 +4,12 @@ from configparser import ConfigParser
 import psycopg2 as pg
 from psycopg2 import extensions
 from healthcheck import HealthCheck, EnvironmentDump
+from prometheus_flask_exporter import PrometheusMetrics
 
 def create_app():
     app = Flask(__name__)
     api = Api(app)
+    metrics = PrometheusMetrics(app)
     health = HealthCheck()
     envdump = EnvironmentDump()
     health.add_check(check_database_connection)

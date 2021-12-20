@@ -13,6 +13,7 @@ flask-unittest = "*"
 pytest = "*"
 dynaconf = "*"
 python-dotenv = "*"
+prometheus-flask-exporter = "*"
 
 [dev-packages]
 

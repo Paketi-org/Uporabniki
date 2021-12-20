@@ -1,0 +1,7 @@
+scrape_configs:
+  - job_name: uporabniki
+    metrics_path: /metrics
+    scrape_timeout: 1m
+    static_configs:
+      - targets:
+        - 172.27.1.3:5000
