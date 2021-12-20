@@ -1,2 +1,11 @@
-# rest-api-microservice-docker
-An example of a RESTful API Deployed on a Docker Container
+# Uporabniki
+
+## Run app
+
+	docker-compose up
+
+## Run tests
+
+While app is running, you can invoke unittests by running:
+
+	pipenv run python api_test.py
