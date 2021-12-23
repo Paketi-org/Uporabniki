@@ -55,6 +55,8 @@ class Narocnik(Resource):
         self.parser.add_argument("priimek", type=str)
         self.parser.add_argument("uporabnisko_ime", type=str)
         self.parser.add_argument("telefonska_stevilka", type=str)
+        self.parser.add_argument("atribut", type=str)
+        self.parser.add_argument("vrednost", type=str)
 
         super(Narocnik, self).__init__()
 
@@ -70,6 +72,15 @@ class Narocnik(Resource):
             d[k] = el
 
         return{"narocnik": marshal(d, narocnikiPolja)}
+
+    def put(self, id):
+        args = self.parser.parse_args()
+        attribute = args["atribut"]
+        value = args["vrednost"]
+        self.cur.execute("""UPDATE {0} SET {1} = '{2}' WHERE id = {3}""".format(self.table_name, attribute, value, id))
+        self.conn.commit()
+
+        return 200
 
     def delete(self, id):
         self.cur.execute("SELECT * FROM narocniki")
