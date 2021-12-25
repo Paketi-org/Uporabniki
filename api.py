@@ -71,7 +71,7 @@ class Narocnik(Resource):
         for el, k in zip(row[0], narocnikiPolja):
             d[k] = el
 
-        return{"narocnik": marshal(d, narocnikiPolja)}
+        return{"narocnik": marshal(d, narocnikiPolja)}, 200
 
     def put(self, id):
         args = self.parser.parse_args()
@@ -117,11 +117,11 @@ class ListNarocnikov(Resource):
                              )''')
 
         self.parser = reqparse.RequestParser()
-        self.parser.add_argument("id", type=int)
-        self.parser.add_argument("ime", type=str)
-        self.parser.add_argument("priimek", type=str)
-        self.parser.add_argument("uporabnisko_ime", type=str)
-        self.parser.add_argument("telefonska_stevilka", type=str)
+        self.parser.add_argument("id", type=int, required=True, help="ID naročnika je obvezen")
+        self.parser.add_argument("ime", type=str, required=True, help="Ime naročnika je obvezen")
+        self.parser.add_argument("priimek", type=str, required=True, help="Priimek naročnika je obvezen")
+        self.parser.add_argument("uporabnisko_ime", type=str, required=True, help="Uporabniško ime naročnika je obvezen")
+        self.parser.add_argument("telefonska_stevilka", type=str, help="Telefonska številka naročnika je obvezna")
 
     def get(self):
         self.cur.execute("SELECT * FROM narocniki")
@@ -158,4 +158,4 @@ class ListNarocnikov(Resource):
 
 if __name__ == "__main__":
     app = create_app()
-    app.run(host="0.0.0.0", port=5000)
+    app.run(host="0.0.0.0", port=5003)
