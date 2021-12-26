@@ -6,13 +6,23 @@ from psycopg2 import extensions
 from healthcheck import HealthCheck, EnvironmentDump
 from prometheus_flask_exporter import PrometheusMetrics
 from prometheus_client import Counter, generate_latest
+from apispec.ext.marshmallow import MarshmallowPlugin
+from flask_apispec import marshal_with, FlaskApiSpec
+from flask_apispec.views import MethodResource
 from marshmallow import Schema, fields
 from apispec import APISpec
-from apispec.ext.marshmallow import MarshmallowPlugin
-from apispec_webframeworks.flask import FlaskPlugin
 
 def create_app():
     app = Flask(__name__)
+    app.config.update({
+        'APISPEC_SPEC': APISpec(
+            openapi_version="3.0.2",
+            title='narocniki',
+            version='v1',
+            plugins=[MarshmallowPlugin()],
+        ),
+        'APISPEC_SWAGGER_URL': '/swagger/',
+    })
     api = Api(app)
     metrics = PrometheusMetrics(app)
     health = HealthCheck()
@@ -23,6 +33,9 @@ def create_app():
     app.add_url_rule("/environment", "environment", view_func=lambda: envdump.run())
     api.add_resource(ListNarocnikov, "/narocniki")
     api.add_resource(Narocnik, "/narocniki/<int:id>")
+    docs = FlaskApiSpec(app)
+    docs.register(ListNarocnikov)
+    docs.register(Narocnik)
 
     return app
 
@@ -48,18 +61,22 @@ narocnikiPolja = {
     "telefonska_stevilka": fields.String,
 }
 
+class NarocnikModel:
+    def __init__(self, id, ime, priimek, uporabnisko_ime, telefonska_stevilka):
+        self.id = id
+        self.ime = ime
+        self.priimek = priimek
+        self.uporabnisko_ime = uporabnisko_ime
+        self.telefonska_stevilka = telefonska_stevilka
+
 class NarocnikSchema(Schema):
-    id = fields.Int()
-    name = fields.Str()
-    priimek = fields.Str()
-    uporabnisko_ime = fields.Str()
-    telefonska_stevilka = fields.Str()
-    atribut = fields.Str()
-    vrednost = fields.Str()
+    id = fields.Integer()
+    ime = fields.String()
+    priimek = fields.String()
+    uporabnisko_ime = fields.String()
+    telefonska_stevilka = fields.String()
 
-
-
-class Narocnik(Resource):
+class Narocnik(MethodResource):
     def __init__(self):
         self.table_name = 'narocniki'
         self.conn = pg.connect('')
@@ -76,6 +93,7 @@ class Narocnik(Resource):
 
         super(Narocnik, self).__init__()
 
+    @marshal_with(NarocnikSchema)
     def get(self, id):
         """
         Vrni podatke narocnika glede na ID
@@ -90,7 +108,14 @@ class Narocnik(Resource):
         for el, k in zip(row[0], narocnikiPolja):
             d[k] = el
 
-        return{"narocnik": marshal(d, narocnikiPolja)}, 200
+        narocnik = NarocnikModel(
+                id = d["id"],
+                ime = d["ime"],
+                priimek = d["priimek"],
+                uporabnisko_ime = d["uporabnisko_ime"],
+                telefonska_stevilka = d["telefonska_stevilka"])
+
+        return narocnik, 200
 
     def put(self, id):
         """
@@ -124,7 +149,7 @@ class Narocnik(Resource):
 
 
 
-class ListNarocnikov(Resource):
+class ListNarocnikov(MethodResource):
     def __init__(self):
         self.table_name = 'narocniki'
         self.conn = pg.connect('')
@@ -164,7 +189,7 @@ class ListNarocnikov(Resource):
             
         return{"narocniki": [marshal(d, narocnikiPolja) for d in ds.values()]}
 
-
+    @marshal_with(NarocnikSchema)
     def post(self):
         """
         Dodaj novega narocnika
@@ -176,52 +201,16 @@ class ListNarocnikov(Resource):
         self.cur.execute('''INSERT INTO {0} (id, ime, priimek, uporabnisko_ime, telefonska_stevilka)
                 VALUES ({1}, '{2}', '{3}', '{4}', '{5}')'''.format('narocniki', *values))
         self.conn.commit()
-        narocnik = {
-            "id": args["id"],
-            "ime": args["ime"],
-            "priimek": args["priimek"],
-            "uporabnisko_ime": args["uporabnisko_ime"],
-            "telefonska_stevika": args["telefonska_stevilka"],
-        }
+        narocnik = NarocnikModel(
+                id = args["id"],
+                ime = args["ime"],
+                priimek = args["priimek"],
+                uporabnisko_ime = args["uporabnisko_ime"],
+                telefonska_stevilka = args["telefonska_stevilka"])
 
-        return{"narocnik": marshal(narocnik, narocnikiPolja)}, 201
+        return narocnik, 201
 
 
 if __name__ == "__main__":
     app = create_app()
-
-    @app.route("/random")
-    def random_narocnik():
-        """
-        Nakljucna koncna tocka za narocnika
-        ---
-        get:
-          description: Dobi nakljucnega narocnika
-          responses:
-            200:
-              description: vrne narocnika
-              content:
-                application/json:
-                  schema: NarocnikSchema
-        """
-        narocnik = {
-            "id": 1,
-            "ime": "Nika",
-            "priimek": "Krasi",
-            "uporabnisko_ime": "nk7220",
-            "telefonska_stevika": "999999999999999999",
-        }
-
-        return NarocnikSchema().dump(narocnik)
-
-    spec = APISpec(
-        title="Narocniki Paketi-org",
-        version="1.0.0",
-        openapi_version="3.0.2",
-        plugins=[FlaskPlugin(), MarshmallowPlugin()]
-    )
-    with app.test_request_context():
-        spec.path(view=random_narocnik)
-        print(spec.to_yaml())
-
     app.run(host="0.0.0.0", port=5003)

@@ -17,6 +17,7 @@ prometheus-flask-exporter = "*"
 apispec = "*"
 marshmallow = "*"
 apispec-webframeworks = "*"
+flask-apispec = "*"
 
 [dev-packages]
 
