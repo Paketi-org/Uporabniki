@@ -1,10 +1,15 @@
-from flask import Flask
+from flask import Flask, request
 from flask_restful import Resource, Api, reqparse, abort, marshal, fields
 from configparser import ConfigParser
 import psycopg2 as pg
 from psycopg2 import extensions
 from healthcheck import HealthCheck, EnvironmentDump
 from prometheus_flask_exporter import PrometheusMetrics
+from prometheus_client import Counter, generate_latest
+from marshmallow import Schema, fields
+from apispec import APISpec
+from apispec.ext.marshmallow import MarshmallowPlugin
+from apispec_webframeworks.flask import FlaskPlugin
 
 def create_app():
     app = Flask(__name__)
@@ -43,6 +48,17 @@ narocnikiPolja = {
     "telefonska_stevilka": fields.String,
 }
 
+class NarocnikSchema(Schema):
+    id = fields.Int()
+    name = fields.Str()
+    priimek = fields.Str()
+    uporabnisko_ime = fields.Str()
+    telefonska_stevilka = fields.Str()
+    atribut = fields.Str()
+    vrednost = fields.Str()
+
+
+
 class Narocnik(Resource):
     def __init__(self):
         self.table_name = 'narocniki'
@@ -61,6 +77,9 @@ class Narocnik(Resource):
         super(Narocnik, self).__init__()
 
     def get(self, id):
+        """
+        Vrni podatke narocnika glede na ID
+        """
         self.cur.execute("SELECT * FROM narocniki WHERE id = %s" % str(id))
         row = self.cur.fetchall()
 
@@ -74,6 +93,9 @@ class Narocnik(Resource):
         return{"narocnik": marshal(d, narocnikiPolja)}, 200
 
     def put(self, id):
+        """
+        Posodobi podatke narocnika glede na ID
+        """
         args = self.parser.parse_args()
         attribute = args["atribut"]
         value = args["vrednost"]
@@ -83,6 +105,9 @@ class Narocnik(Resource):
         return 200
 
     def delete(self, id):
+        """
+        Izbriši narocnika glede na ID
+        """
         self.cur.execute("SELECT * FROM narocniki")
         rows = self.cur.fetchall()
         ids = []
@@ -124,6 +149,9 @@ class ListNarocnikov(Resource):
         self.parser.add_argument("telefonska_stevilka", type=str, help="Telefonska številka naročnika je obvezna")
 
     def get(self):
+        """
+        Vrni vse narocnike
+        """
         self.cur.execute("SELECT * FROM narocniki")
         rows = self.cur.fetchall()
         ds = {}
@@ -138,6 +166,9 @@ class ListNarocnikov(Resource):
 
 
     def post(self):
+        """
+        Dodaj novega narocnika
+        """
         args = self.parser.parse_args()
         values = []
         for a in args.values():
@@ -158,4 +189,39 @@ class ListNarocnikov(Resource):
 
 if __name__ == "__main__":
     app = create_app()
+
+    @app.route("/random")
+    def random_narocnik():
+        """
+        Nakljucna koncna tocka za narocnika
+        ---
+        get:
+          description: Dobi nakljucnega narocnika
+          responses:
+            200:
+              description: vrne narocnika
+              content:
+                application/json:
+                  schema: NarocnikSchema
+        """
+        narocnik = {
+            "id": 1,
+            "ime": "Nika",
+            "priimek": "Krasi",
+            "uporabnisko_ime": "nk7220",
+            "telefonska_stevika": "999999999999999999",
+        }
+
+        return NarocnikSchema().dump(narocnik)
+
+    spec = APISpec(
+        title="Narocniki Paketi-org",
+        version="1.0.0",
+        openapi_version="3.0.2",
+        plugins=[FlaskPlugin(), MarshmallowPlugin()]
+    )
+    with app.test_request_context():
+        spec.path(view=random_narocnik)
+        print(spec.to_yaml())
+
     app.run(host="0.0.0.0", port=5003)
