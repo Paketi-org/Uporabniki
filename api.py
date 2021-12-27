@@ -1,6 +1,5 @@
 from flask import Flask
 from flask_restx import Resource, Api, fields, reqparse, abort, marshal, marshal_with
-#from flask_apispec import marshal_with
 from configparser import ConfigParser
 import psycopg2 as pg
 from psycopg2 import extensions
@@ -11,7 +10,7 @@ from prometheus_client import Counter, generate_latest
 # TODO: Put version in config file
 
 app = Flask(__name__)
-api = Api(app, version='1.0', title='Narocniki API', description='Abstrakt Narocniki API')
+api = Api(app, version='1.0', title='Narocniki API', description='Abstrakt Narocniki API',default_swagger_filename='openapi.json', default='Uporabniki CRUD', default_label='koncne tocke in operacije')
 narocnikApiModel = api.model('ModelNarocnika', {
     "id": fields.Integer(readonly=True, description='ID narocnika'),
     "ime": fields.String(readonly=True, description='Ime narocnika'),
@@ -85,6 +84,8 @@ class Narocnik(Resource):
         super(Narocnik, self).__init__(*args, **kwargs)
 
     @marshal_with(narocnikApiModel)
+    @ns.response(404, 'Narocnik ni najden')
+    @ns.doc("Vrni narocnika")
     def get(self, id):
         """
         Vrni podatke narocnika glede na ID
@@ -110,6 +111,8 @@ class Narocnik(Resource):
 
     @marshal_with(narocnikApiModel)
     @ns.expect(posodobiModel)
+    @ns.response(404, 'Narocnik ni najden')
+    @ns.doc("Posodobi narocnika")
     def put(self, id):
         """
         Posodobi podatke narocnika glede na ID
@@ -139,6 +142,9 @@ class Narocnik(Resource):
 
         return narocnik, 200
 
+    @ns.doc("Izbrisi narocnika")
+    @ns.response(404, 'Narocnik ni najden')
+    @ns.response(204, 'Narocnik izbrisan')
     def delete(self, id):
         """
         Izbriši narocnika glede na ID
@@ -183,7 +189,8 @@ class ListNarocnikov(Resource):
 
         super(ListNarocnikov, self).__init__(*args, **kwargs)
 
-    @marshal_with(narocnikiApiModel)
+    @ns.marshal_list_with(narocnikiApiModel)
+    @ns.doc("Vrni vse narocnike")
     def get(self):
         """
         Vrni vse narocnike
@@ -212,6 +219,7 @@ class ListNarocnikov(Resource):
 
     @marshal_with(narocnikApiModel)
     @ns.expect(narocnikApiModel)
+    @ns.doc("Dodaj narocnika")
     def post(self):
         """
         Dodaj novega narocnika
