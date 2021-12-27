@@ -6,9 +6,26 @@ from psycopg2 import extensions
 from healthcheck import HealthCheck, EnvironmentDump
 from prometheus_flask_exporter import PrometheusMetrics
 from prometheus_client import Counter, generate_latest
+from fluent import sender, handler
+import logging
+from time import time
 
 # TODO: Put version in config file
 
+custom_format = {
+  'name': '%(name_of_service)s',
+  'method': '%(crud_method)s',
+  'traffic': '%(directions)s',
+  'type': '%(levelname)s',
+}
+logging.basicConfig(level=logging.INFO)
+l = logging.getLogger('fluent.test')
+h = handler.FluentHandler('Uporabniki', host='172.25.1.8', port=9880)
+formatter = handler.FluentRecordFormatter(custom_format)
+h.setFormatter(formatter)
+l.addHandler(h)
+
+l.info("Setting up Uporabniki App", extra={"name_of_service": "Uporabniki", "crud_method": None, "directions": None})
 app = Flask(__name__)
 api = Api(app, version='1.0', title='Narocniki API', description='Abstrakt Narocniki API',default_swagger_filename='openapi.json', default='Uporabniki CRUD', default_label='koncne tocke in operacije')
 narocnikApiModel = api.model('ModelNarocnika', {
@@ -24,8 +41,10 @@ posodobiModel = api.model('PosodobiNarocnika', {
     "atribut": fields.String,
     "vrednost": fields.String
 })
+#logger = sender.FluentSender('Uporabniki', host='172.25.1.8', port=9880)
 
 def create_app():
+    #logger.emit_with_time('setup', int(time()), 'Konfiguriranje Uporabniki app')
     metrics = PrometheusMetrics(app)
     health = HealthCheck()
     envdump = EnvironmentDump()
@@ -35,6 +54,8 @@ def create_app():
     app.add_url_rule("/environment", "environment", view_func=lambda: envdump.run())
     api.add_resource(ListNarocnikov, "/narocniki")
     api.add_resource(Narocnik, "/narocniki/<int:id>")
+    l.info("Uporabniki App pripravljen", extra={"name_of_service": "Uporabniki", "crud_method": None, "directions": None})
+    #logger.emit_with_time('setup', int(time()), 'Konfiguriranje Uporabniki app koncano')
 
 class NarocnikModel:
     def __init__(self, id, ime, priimek, uporabnisko_ime, telefonska_stevilka):
@@ -44,6 +65,7 @@ class NarocnikModel:
         self.uporabnisko_ime = uporabnisko_ime
         self.telefonska_stevilka = telefonska_stevilka
 
+# Kubernetes Liveness Probe (200-399 healthy, 400-599 sick)
 def check_database_connection():
     conn = pg.connect('')
     if conn.poll() == extensions.POLL_OK:
@@ -52,9 +74,11 @@ def check_database_connection():
         print ("POLL: POLL_READ")
     if conn.poll() == extensions.POLL_WRITE:
         print ("POLL: POLL_WRITE")
+    l.info("Healtcheck povezave z bazo", extra={"name_of_service": "Uporabniki", "crud_method": "healthcheck", "directions": "out"})
     return True, "Database connection OK"
 
 def application_data():
+    l.info("Application environmental data dump", extra={"name_of_service": "Uporabniki", "crud_method": "envdump", "directions": "out"})
     return {"maintainer": "Teodor Janez Podobnik",
             "git_repo": "https://github.com/Paketi-org/Uporabniki.git"}
 
@@ -90,6 +114,7 @@ class Narocnik(Resource):
         """
         Vrni podatke narocnika glede na ID
         """
+        l.info("Zahtevaj narocnika z ID %s" % str(id), extra={"name_of_service": "Uporabniki", "crud_method": "get", "directions": "in"})
         self.cur.execute("SELECT * FROM narocniki WHERE id = %s" % str(id))
         row = self.cur.fetchall()
 
@@ -107,6 +132,8 @@ class Narocnik(Resource):
                 uporabnisko_ime = d["uporabnisko_ime"].strip(),
                 telefonska_stevilka = d["telefonska_stevilka"].strip())
 
+        l.info("Vrni narocnika z ID %s" % str(id), extra={"name_of_service": "Uporabniki", "crud_method": "get", "directions": "out"})
+
         return narocnik, 200
 
     @marshal_with(narocnikApiModel)
@@ -117,6 +144,7 @@ class Narocnik(Resource):
         """
         Posodobi podatke narocnika glede na ID
         """
+        l.info("Posodobi narocnika z ID %s" % str(id), extra={"name_of_service": "Uporabniki", "crud_method": "put", "directions": "in"})
         self.cur.execute("SELECT * FROM narocniki WHERE id = %s" % str(id))
         row = self.cur.fetchall()
 
@@ -140,6 +168,8 @@ class Narocnik(Resource):
                 uporabnisko_ime = d["uporabnisko_ime"].strip(),
                 telefonska_stevilka = d["telefonska_stevilka"].strip())
 
+        l.info("Vrni posodobljenega narocnika z ID %s" % str(id), extra={"name_of_service": "Uporabniki", "crud_method": "put", "directions": "out"})
+
         return narocnik, 200
 
     @ns.doc("Izbrisi narocnika")
@@ -149,6 +179,7 @@ class Narocnik(Resource):
         """
         Izbriši narocnika glede na ID
         """
+        l.info("Izbrisi narocnika z ID %s" % str(id), extra={"name_of_service": "Uporabniki", "crud_method": "delete", "directions": "in"})
         self.cur.execute("SELECT * FROM narocniki")
         rows = self.cur.fetchall()
         ids = []
@@ -156,10 +187,13 @@ class Narocnik(Resource):
             ids.append(row[0])
 
         if id not in ids:
+            l.warning("Narocnik z ID %s ni bil najden in ne bo izbrisan" % str(id), extra={"name_of_service": "Uporabniki", "crud_method": "delete", "directions": "out"})
             abort(404)
         else:
             self.cur.execute("DELETE FROM narocniki WHERE id = %s" % str(id))
             self.conn.commit()
+
+        l.info("Narocnik z ID %s izbrisan" % str(id), extra={"name_of_service": "Uporabniki", "crud_method": "delete", "directions": "out"})
 
         return 204
 
@@ -195,6 +229,7 @@ class ListNarocnikov(Resource):
         """
         Vrni vse narocnike
         """
+        l.info("Zahtevaj vse narocnike", extra={"name_of_service": "Uporabniki", "crud_method": "get", "directions": "in"})
         self.cur.execute("SELECT * FROM narocniki")
         rows = self.cur.fetchall()
         ds = {}
@@ -214,6 +249,8 @@ class ListNarocnikov(Resource):
                     uporabnisko_ime = ds[d]["uporabnisko_ime"].strip(),
                     telefonska_stevilka = ds[d]["telefonska_stevilka"].strip())
             narocniki.append(narocnik)
+
+        l.info("Vrni vse narocnike", extra={"name_of_service": "Uporabniki", "crud_method": "get", "directions": "out"})
             
         return {"narocniki": narocniki}, 200 
 
@@ -224,6 +261,7 @@ class ListNarocnikov(Resource):
         """
         Dodaj novega narocnika
         """
+        l.info("Dodaj novega narocnika", extra={"name_of_service": "Uporabniki", "crud_method": "post", "directions": "in"})
         args = self.parser.parse_args()
         values = []
         for a in args.values():
@@ -238,9 +276,13 @@ class ListNarocnikov(Resource):
                 uporabnisko_ime = args["uporabnisko_ime"].strip(),
                 telefonska_stevilka = args["telefonska_stevilka"].strip())
 
+        l.info("Nov narocnik dodan", extra={"name_of_service": "Uporabniki", "crud_method": "post", "directions": "out"})
+
         return narocnik, 201
 
 
 if __name__ == "__main__":
     create_app()
     app.run(host="0.0.0.0", port=5003)
+    #logger.close()
+    h.close()
