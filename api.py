@@ -114,17 +114,17 @@ class Narocnik(Resource):
         """
         Posodobi podatke narocnika glede na ID
         """
-        args = self.parser.parse_args()
-        attribute = args["atribut"]
-        value = args["vrednost"]
-        self.cur.execute("""UPDATE {0} SET {1} = '{2}' WHERE id = {3}""".format(self.table_name, attribute, value, id))
-        self.conn.commit()
-
         self.cur.execute("SELECT * FROM narocniki WHERE id = %s" % str(id))
         row = self.cur.fetchall()
 
         if(len(row) == 0):
             abort(404)
+
+        args = self.parser.parse_args()
+        attribute = args["atribut"]
+        value = args["vrednost"]
+        self.cur.execute("""UPDATE {0} SET {1} = '{2}' WHERE id = {3}""".format(self.table_name, attribute, value, id))
+        self.conn.commit()
 
         d = {}
         for el, k in zip(row[0], narocnikiPolja):
@@ -155,7 +155,7 @@ class Narocnik(Resource):
             self.cur.execute("DELETE FROM narocniki WHERE id = %s" % str(id))
             self.conn.commit()
 
-        return 200
+        return 204
 
 class ListNarocnikov(Resource):
     def __init__(self, *args, **kwargs):
