@@ -32,8 +32,6 @@ def create_app():
     api.add_resource(ListNarocnikov, "/narocniki")
     api.add_resource(Narocnik, "/narocniki/<int:id>")
 
-    return app
-
 class NarocnikModel:
     def __init__(self, id, ime, priimek, uporabnisko_ime, telefonska_stevilka):
         self.id = id
@@ -211,7 +209,7 @@ class ListNarocnikov(Resource):
                     telefonska_stevilka = ds[d]["telefonska_stevilka"].strip())
             narocniki.append(narocnik)
             
-        return narocniki, 200 
+        return {"narocniki": narocniki}, 200 
 
     @marshal_with(narocnikiApiModel)
     def post(self):
@@ -236,5 +234,5 @@ class ListNarocnikov(Resource):
 
 
 if __name__ == "__main__":
-    app = create_app()
+    create_app()
     app.run(host="0.0.0.0", port=5003)
