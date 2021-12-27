@@ -20,6 +20,11 @@ narocnikApiModel = api.model('ModelNarocnika', {
     "telefonska_stevilka": fields.String(readonly=True, description='Telefonska stevilka narocnika')
 })
 narocnikiApiModel = api.model('ModelNarocnikov', {"narocniki": fields.List(fields.Nested(narocnikApiModel))})
+ns = api.namespace('Uporabniki CRUD', description='Uporabniki koncne tocke in operacije')
+posodobiModel = api.model('PosodobiNarocnika', {
+    "atribut": fields.String,
+    "vrednost": fields.String
+})
 
 def create_app():
     metrics = PrometheusMetrics(app)
@@ -62,31 +67,6 @@ narocnikiPolja = {
     "telefonska_stevilka": fields.String,
 }
 
-'''
-class NarocnikFields(fields.Raw):
-    def format(self, value):
-        id = fields.Integer()
-        ime = fields.String()
-        priimek = fields.String()
-        uporabnisko_ime = fields.String()
-        telefonska_stevilka = fields.String()
-'''
-
-class NarocnikiFields(fields.Raw):
-    def format(self, value):
-        narocniki = []
-        for v in value:
-            narocnik = NarocnikModel(
-                    id = v["id"],
-                    ime = v["ime"],
-                    priimek = v["priimek"],
-                    uporabnisko_ime = v["uporabnisko_ime"],
-                    telefonska_stevilka = v["telefonska_stevilka"])
-            narocniki.append(narocnik)
-
-        return narocniki
-
-
 class Narocnik(Resource):
     def __init__(self, *args, **kwargs):
         self.table_name = 'narocniki'
@@ -128,6 +108,8 @@ class Narocnik(Resource):
 
         return narocnik, 200
 
+    @marshal_with(narocnikApiModel)
+    @ns.expect(posodobiModel)
     def put(self, id):
         """
         Posodobi podatke narocnika glede na ID
@@ -138,7 +120,24 @@ class Narocnik(Resource):
         self.cur.execute("""UPDATE {0} SET {1} = '{2}' WHERE id = {3}""".format(self.table_name, attribute, value, id))
         self.conn.commit()
 
-        return 200
+        self.cur.execute("SELECT * FROM narocniki WHERE id = %s" % str(id))
+        row = self.cur.fetchall()
+
+        if(len(row) == 0):
+            abort(404)
+
+        d = {}
+        for el, k in zip(row[0], narocnikiPolja):
+            d[k] = el
+
+        narocnik = NarocnikModel(
+                id = d["id"],
+                ime = d["ime"].strip(),
+                priimek = d["priimek"].strip(),
+                uporabnisko_ime = d["uporabnisko_ime"].strip(),
+                telefonska_stevilka = d["telefonska_stevilka"].strip())
+
+        return narocnik, 200
 
     def delete(self, id):
         """
@@ -211,7 +210,8 @@ class ListNarocnikov(Resource):
             
         return {"narocniki": narocniki}, 200 
 
-    @marshal_with(narocnikiApiModel)
+    @marshal_with(narocnikApiModel)
+    @ns.expect(narocnikApiModel)
     def post(self):
         """
         Dodaj novega narocnika
