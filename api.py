@@ -1,29 +1,27 @@
-from flask import Flask, request
-from flask_restful import Resource, Api, reqparse, abort, marshal, fields
+from flask import Flask
+from flask_restx import Resource, Api, fields, reqparse, abort, marshal, marshal_with
+#from flask_apispec import marshal_with
 from configparser import ConfigParser
 import psycopg2 as pg
 from psycopg2 import extensions
 from healthcheck import HealthCheck, EnvironmentDump
 from prometheus_flask_exporter import PrometheusMetrics
 from prometheus_client import Counter, generate_latest
-from apispec.ext.marshmallow import MarshmallowPlugin
-from flask_apispec import marshal_with, FlaskApiSpec
-from flask_apispec.views import MethodResource
-from marshmallow import Schema, fields
-from apispec import APISpec
+
+# TODO: Put version in config file
+
+app = Flask(__name__)
+api = Api(app, version='1.0', title='Narocniki API', description='Abstrakt Narocniki API')
+narocnikApiModel = api.model('ModelNarocnika', {
+    "id": fields.Integer(readonly=True, description='ID narocnika'),
+    "ime": fields.String(readonly=True, description='Ime narocnika'),
+    "priimek": fields.String(readonly=True, description='Priimek narocnika'),
+    "uporabnisko_ime": fields.String(readonly=True, description='Uporabnisko ime narocnika'),
+    "telefonska_stevilka": fields.String(readonly=True, description='Telefonska stevilka narocnika')
+})
+narocnikiApiModel = api.model('ModelNarocnikov', {"narocniki": fields.List(fields.Nested(narocnikApiModel))})
 
 def create_app():
-    app = Flask(__name__)
-    app.config.update({
-        'APISPEC_SPEC': APISpec(
-            openapi_version="3.0.2",
-            title='narocniki',
-            version='v1',
-            plugins=[MarshmallowPlugin()],
-        ),
-        'APISPEC_SWAGGER_URL': '/swagger/',
-    })
-    api = Api(app)
     metrics = PrometheusMetrics(app)
     health = HealthCheck()
     envdump = EnvironmentDump()
@@ -33,11 +31,16 @@ def create_app():
     app.add_url_rule("/environment", "environment", view_func=lambda: envdump.run())
     api.add_resource(ListNarocnikov, "/narocniki")
     api.add_resource(Narocnik, "/narocniki/<int:id>")
-    docs = FlaskApiSpec(app)
-    docs.register(ListNarocnikov)
-    docs.register(Narocnik)
 
     return app
+
+class NarocnikModel:
+    def __init__(self, id, ime, priimek, uporabnisko_ime, telefonska_stevilka):
+        self.id = id
+        self.ime = ime
+        self.priimek = priimek
+        self.uporabnisko_ime = uporabnisko_ime
+        self.telefonska_stevilka = telefonska_stevilka
 
 def check_database_connection():
     conn = pg.connect('')
@@ -61,23 +64,33 @@ narocnikiPolja = {
     "telefonska_stevilka": fields.String,
 }
 
-class NarocnikModel:
-    def __init__(self, id, ime, priimek, uporabnisko_ime, telefonska_stevilka):
-        self.id = id
-        self.ime = ime
-        self.priimek = priimek
-        self.uporabnisko_ime = uporabnisko_ime
-        self.telefonska_stevilka = telefonska_stevilka
+'''
+class NarocnikFields(fields.Raw):
+    def format(self, value):
+        id = fields.Integer()
+        ime = fields.String()
+        priimek = fields.String()
+        uporabnisko_ime = fields.String()
+        telefonska_stevilka = fields.String()
+'''
 
-class NarocnikSchema(Schema):
-    id = fields.Integer()
-    ime = fields.String()
-    priimek = fields.String()
-    uporabnisko_ime = fields.String()
-    telefonska_stevilka = fields.String()
+class NarocnikiFields(fields.Raw):
+    def format(self, value):
+        narocniki = []
+        for v in value:
+            narocnik = NarocnikModel(
+                    id = v["id"],
+                    ime = v["ime"],
+                    priimek = v["priimek"],
+                    uporabnisko_ime = v["uporabnisko_ime"],
+                    telefonska_stevilka = v["telefonska_stevilka"])
+            narocniki.append(narocnik)
 
-class Narocnik(MethodResource):
-    def __init__(self):
+        return narocniki
+
+
+class Narocnik(Resource):
+    def __init__(self, *args, **kwargs):
         self.table_name = 'narocniki'
         self.conn = pg.connect('')
         self.cur = self.conn.cursor()
@@ -91,9 +104,9 @@ class Narocnik(MethodResource):
         self.parser.add_argument("atribut", type=str)
         self.parser.add_argument("vrednost", type=str)
 
-        super(Narocnik, self).__init__()
+        super(Narocnik, self).__init__(*args, **kwargs)
 
-    @marshal_with(NarocnikSchema)
+    @marshal_with(narocnikApiModel)
     def get(self, id):
         """
         Vrni podatke narocnika glede na ID
@@ -110,10 +123,10 @@ class Narocnik(MethodResource):
 
         narocnik = NarocnikModel(
                 id = d["id"],
-                ime = d["ime"],
-                priimek = d["priimek"],
-                uporabnisko_ime = d["uporabnisko_ime"],
-                telefonska_stevilka = d["telefonska_stevilka"])
+                ime = d["ime"].strip(),
+                priimek = d["priimek"].strip(),
+                uporabnisko_ime = d["uporabnisko_ime"].strip(),
+                telefonska_stevilka = d["telefonska_stevilka"].strip())
 
         return narocnik, 200
 
@@ -147,10 +160,8 @@ class Narocnik(MethodResource):
 
         return 200
 
-
-
-class ListNarocnikov(MethodResource):
-    def __init__(self):
+class ListNarocnikov(Resource):
+    def __init__(self, *args, **kwargs):
         self.table_name = 'narocniki'
         self.conn = pg.connect('')
         self.cur = self.conn.cursor()
@@ -173,6 +184,9 @@ class ListNarocnikov(MethodResource):
         self.parser.add_argument("uporabnisko_ime", type=str, required=True, help="Uporabniško ime naročnika je obvezen")
         self.parser.add_argument("telefonska_stevilka", type=str, help="Telefonska številka naročnika je obvezna")
 
+        super(ListNarocnikov, self).__init__(*args, **kwargs)
+
+    @marshal_with(narocnikiApiModel)
     def get(self):
         """
         Vrni vse narocnike
@@ -186,10 +200,20 @@ class ListNarocnikov(MethodResource):
             for el, k in zip(row, narocnikiPolja):
                 ds[i][k] = el
             i += 1
-            
-        return{"narocniki": [marshal(d, narocnikiPolja) for d in ds.values()]}
 
-    @marshal_with(NarocnikSchema)
+        narocniki = []
+        for d in ds:
+            narocnik = NarocnikModel(
+                    id = ds[d]["id"],
+                    ime = ds[d]["ime"].strip(),
+                    priimek = ds[d]["priimek"].strip(),
+                    uporabnisko_ime = ds[d]["uporabnisko_ime"].strip(),
+                    telefonska_stevilka = ds[d]["telefonska_stevilka"].strip())
+            narocniki.append(narocnik)
+            
+        return narocniki, 200 
+
+    @marshal_with(narocnikiApiModel)
     def post(self):
         """
         Dodaj novega narocnika
@@ -203,10 +227,10 @@ class ListNarocnikov(MethodResource):
         self.conn.commit()
         narocnik = NarocnikModel(
                 id = args["id"],
-                ime = args["ime"],
-                priimek = args["priimek"],
-                uporabnisko_ime = args["uporabnisko_ime"],
-                telefonska_stevilka = args["telefonska_stevilka"])
+                ime = args["ime"].strip(),
+                priimek = args["priimek"].strip(),
+                uporabnisko_ime = args["uporabnisko_ime"].strip(),
+                telefonska_stevilka = args["telefonska_stevilka"].strip())
 
         return narocnik, 201
 

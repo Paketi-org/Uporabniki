@@ -18,6 +18,8 @@ apispec = "*"
 marshmallow = "*"
 apispec-webframeworks = "*"
 flask-apispec = "*"
+flask-restplus = "*"
+flask-restx = "*"
 
 [dev-packages]
 
