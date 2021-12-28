@@ -11,6 +11,7 @@ import logging
 from time import time
 import json
 import os
+import subprocess
 
 # TODO: Put version in config file
 app = Flask(__name__)
@@ -63,10 +64,8 @@ posodobiModel = api.model('PosodobiNarocnika', {
     "atribut": fields.String,
     "vrednost": fields.String
 })
-#logger = sender.FluentSender('Uporabniki', host='172.25.1.8', port=9880)
 
 def create_app():
-    #logger.emit_with_time('setup', int(time()), 'Konfiguriranje Uporabniki app')
     metrics = PrometheusMetrics(app)
     health = HealthCheck()
     envdump = EnvironmentDump()
@@ -77,15 +76,6 @@ def create_app():
     api.add_resource(ListNarocnikov, "/narocniki")
     api.add_resource(Narocnik, "/narocniki/<int:id>")
     l.info("Uporabniki App pripravljen", extra={"name_of_service": "Uporabniki", "crud_method": None, "directions": None})
-    #logger.emit_with_time('setup', int(time()), 'Konfiguriranje Uporabniki app koncano')
-
-class NarocnikModel:
-    def __init__(self, id, ime, priimek, uporabnisko_ime, telefonska_stevilka):
-        self.id = id
-        self.ime = ime
-        self.priimek = priimek
-        self.uporabnisko_ime = uporabnisko_ime
-        self.telefonska_stevilka = telefonska_stevilka
 
 # Kubernetes Liveness Probe (200-399 healthy, 400-599 sick)
 def check_database_connection():
@@ -103,6 +93,14 @@ def application_data():
     l.info("Application environmental data dump", extra={"name_of_service": "Uporabniki", "crud_method": "envdump", "directions": "out"})
     return {"maintainer": "Teodor Janez Podobnik",
             "git_repo": "https://github.com/Paketi-org/Uporabniki.git"}
+
+class NarocnikModel:
+    def __init__(self, id, ime, priimek, uporabnisko_ime, telefonska_stevilka):
+        self.id = id
+        self.ime = ime
+        self.priimek = priimek
+        self.uporabnisko_ime = uporabnisko_ime
+        self.telefonska_stevilka = telefonska_stevilka
 
 narocnikiPolja = {
     "id": fields.Integer,
