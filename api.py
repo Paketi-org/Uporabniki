@@ -50,7 +50,7 @@ def connect_to_database():
                       port=app.config["DATABASE_PORT"], host=app.config["DATABASE_IP"])
 
 
-api = Api(app, version='1.0', title='Narocniki API', description='Abstrakt Narocniki API',default_swagger_filename='openapi.json', default='Uporabniki CRUD', default_label='koncne tocke in operacije')
+api = Api(app, version='1.0', doc='/openapi', title='Narocniki API', description='Abstrakt Narocniki API',default_swagger_filename='openapi.json', default='Uporabniki CRUD', default_label='koncne tocke in operacije')
 narocnikApiModel = api.model('ModelNarocnika', {
     "id": fields.Integer(readonly=True, description='ID narocnika'),
     "ime": fields.String(readonly=True, description='Ime narocnika'),
