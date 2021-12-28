@@ -9,8 +9,24 @@ from prometheus_client import Counter, generate_latest
 from fluent import sender, handler
 import logging
 from time import time
+import json
+import os
 
 # TODO: Put version in config file
+app = Flask(__name__)
+
+# Load configurations from the config file
+def load_configurations():
+    app.config.from_file('config.json', load=json.load)
+
+    with open('config.json') as json_file:
+        data = json.load(json_file)
+        # Override variables defined in the environment over the ones from the config file
+        for item in data:
+            if os.environ.get(item):
+                app.config[item] = os.environ.get(item)
+
+load_configurations()
 
 custom_format = {
   'name': '%(name_of_service)s',
@@ -20,13 +36,19 @@ custom_format = {
 }
 logging.basicConfig(level=logging.INFO)
 l = logging.getLogger('fluent.test')
-h = handler.FluentHandler('Uporabniki', host='172.25.1.8', port=9880)
+h = handler.FluentHandler('Uporabniki', host=app.config["FLUENT_IP"], port=app.config["FLUENT_PORT"])
 formatter = handler.FluentRecordFormatter(custom_format)
 h.setFormatter(formatter)
 l.addHandler(h)
 
 l.info("Setting up Uporabniki App", extra={"name_of_service": "Uporabniki", "crud_method": None, "directions": None})
-app = Flask(__name__)
+
+
+def connect_to_database():
+    return pg.connect(database=app.config["DATABASE_NAME"], user=app.config["DATABASE_USER"], password=app.config["DATABASE_PASSWORD"],
+                      port=app.config["DATABASE_PORT"], host=app.config["DATABASE_IP"])
+
+
 api = Api(app, version='1.0', title='Narocniki API', description='Abstrakt Narocniki API',default_swagger_filename='openapi.json', default='Uporabniki CRUD', default_label='koncne tocke in operacije')
 narocnikApiModel = api.model('ModelNarocnika', {
     "id": fields.Integer(readonly=True, description='ID narocnika'),
@@ -67,7 +89,7 @@ class NarocnikModel:
 
 # Kubernetes Liveness Probe (200-399 healthy, 400-599 sick)
 def check_database_connection():
-    conn = pg.connect('')
+    conn = connect_to_database()
     if conn.poll() == extensions.POLL_OK:
         print ("POLL: POLL_OK")
     if conn.poll() == extensions.POLL_READ:
@@ -93,7 +115,7 @@ narocnikiPolja = {
 class Narocnik(Resource):
     def __init__(self, *args, **kwargs):
         self.table_name = 'narocniki'
-        self.conn = pg.connect('')
+        self.conn = connect_to_database()
         self.cur = self.conn.cursor()
 
         self.parser = reqparse.RequestParser()
@@ -200,7 +222,7 @@ class Narocnik(Resource):
 class ListNarocnikov(Resource):
     def __init__(self, *args, **kwargs):
         self.table_name = 'narocniki'
-        self.conn = pg.connect('')
+        self.conn = connect_to_database()
         self.cur = self.conn.cursor()
         self.cur.execute("select exists(select * from information_schema.tables where table_name=%s)", (self.table_name,))
         if self.cur.fetchone()[0]:
