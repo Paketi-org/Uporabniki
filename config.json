@@ -1,9 +1,9 @@
 {
-    "DATABASE_IP": "localhost",
+    "DATABASE_IP": "172.25.1.2",
     "DATABASE_PORT": 5432,
-    "DATABASE_NAME": "uporabniki",
+    "DATABASE_NAME": "paketiorg",
     "DATABASE_USER": "postgres",
     "DATABASE_PASSWORD": "postgres",
-    "FLUENT_IP": "localhost",
+    "FLUENT_IP": "172.25.1.8",
     "FLUENT_PORT": 9880
 }

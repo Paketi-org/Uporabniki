@@ -11,6 +11,8 @@ import logging
 from time import time
 import json
 import os
+import subprocess
+import socket
 
 # TODO: Put version in config file
 app = Flask(__name__)
@@ -32,7 +34,9 @@ custom_format = {
   'name': '%(name_of_service)s',
   'method': '%(crud_method)s',
   'traffic': '%(directions)s',
-  'type': '%(levelname)s',
+  'ip': '%(ip_node)s',
+  'status': '%(status)s',
+  'code': '%(http_code)s',
 }
 logging.basicConfig(level=logging.INFO)
 l = logging.getLogger('fluent.test')
@@ -41,7 +45,7 @@ formatter = handler.FluentRecordFormatter(custom_format)
 h.setFormatter(formatter)
 l.addHandler(h)
 
-l.info("Setting up Uporabniki App", extra={"name_of_service": "Uporabniki", "crud_method": None, "directions": None})
+l.info("Setting up Uporabniki App", extra={"name_of_service": "Uporabniki", "crud_method": None, "directions": None, "ip_node": None, "status": None, "http_code": None})
 
 
 def connect_to_database():
@@ -49,7 +53,7 @@ def connect_to_database():
                       port=app.config["DATABASE_PORT"], host=app.config["DATABASE_IP"])
 
 
-api = Api(app, version='1.0', title='Narocniki API', description='Abstrakt Narocniki API',default_swagger_filename='openapi.json', default='Uporabniki CRUD', default_label='koncne tocke in operacije')
+api = Api(app, version='1.0', doc='/openapi', title='Narocniki API', description='Abstrakt Narocniki API',default_swagger_filename='openapi.json', default='Uporabniki CRUD', default_label='koncne tocke in operacije')
 narocnikApiModel = api.model('ModelNarocnika', {
     "id": fields.Integer(readonly=True, description='ID narocnika'),
     "ime": fields.String(readonly=True, description='Ime narocnika'),
@@ -63,10 +67,8 @@ posodobiModel = api.model('PosodobiNarocnika', {
     "atribut": fields.String,
     "vrednost": fields.String
 })
-#logger = sender.FluentSender('Uporabniki', host='172.25.1.8', port=9880)
 
 def create_app():
-    #logger.emit_with_time('setup', int(time()), 'Konfiguriranje Uporabniki app')
     metrics = PrometheusMetrics(app)
     health = HealthCheck()
     envdump = EnvironmentDump()
@@ -76,16 +78,7 @@ def create_app():
     app.add_url_rule("/environment", "environment", view_func=lambda: envdump.run())
     api.add_resource(ListNarocnikov, "/narocniki")
     api.add_resource(Narocnik, "/narocniki/<int:id>")
-    l.info("Uporabniki App pripravljen", extra={"name_of_service": "Uporabniki", "crud_method": None, "directions": None})
-    #logger.emit_with_time('setup', int(time()), 'Konfiguriranje Uporabniki app koncano')
-
-class NarocnikModel:
-    def __init__(self, id, ime, priimek, uporabnisko_ime, telefonska_stevilka):
-        self.id = id
-        self.ime = ime
-        self.priimek = priimek
-        self.uporabnisko_ime = uporabnisko_ime
-        self.telefonska_stevilka = telefonska_stevilka
+    l.info("Uporabniki App pripravljen", extra={"name_of_service": "Uporabniki", "crud_method": None, "directions": None, "ip_node": None, "status": None, "http_code": None})
 
 # Kubernetes Liveness Probe (200-399 healthy, 400-599 sick)
 def check_database_connection():
@@ -96,13 +89,21 @@ def check_database_connection():
         print ("POLL: POLL_READ")
     if conn.poll() == extensions.POLL_WRITE:
         print ("POLL: POLL_WRITE")
-    l.info("Healtcheck povezave z bazo", extra={"name_of_service": "Uporabniki", "crud_method": "healthcheck", "directions": "out"})
+    l.info("Healtcheck povezave z bazo", extra={"name_of_service": "Uporabniki", "crud_method": "healthcheck", "directions": "out", "ip_node": socket.gethostbyname(socket.gethostname()), "status": "success", "http_code": None})
     return True, "Database connection OK"
 
 def application_data():
-    l.info("Application environmental data dump", extra={"name_of_service": "Uporabniki", "crud_method": "envdump", "directions": "out"})
+    l.info("Application environmental data dump", extra={"name_of_service": "Uporabniki", "crud_method": "envdump", "directions": "out", "ip_node": socket.gethostbyname(socket.gethostname()), "status": "success", "http_code": None})
     return {"maintainer": "Teodor Janez Podobnik",
             "git_repo": "https://github.com/Paketi-org/Uporabniki.git"}
+
+class NarocnikModel:
+    def __init__(self, id, ime, priimek, uporabnisko_ime, telefonska_stevilka):
+        self.id = id
+        self.ime = ime
+        self.priimek = priimek
+        self.uporabnisko_ime = uporabnisko_ime
+        self.telefonska_stevilka = telefonska_stevilka
 
 narocnikiPolja = {
     "id": fields.Integer,
@@ -136,7 +137,7 @@ class Narocnik(Resource):
         """
         Vrni podatke narocnika glede na ID
         """
-        l.info("Zahtevaj narocnika z ID %s" % str(id), extra={"name_of_service": "Uporabniki", "crud_method": "get", "directions": "in"})
+        l.info("Zahtevaj narocnika z ID %s" % str(id), extra={"name_of_service": "Uporabniki", "crud_method": "get", "directions": "in", "ip_node": socket.gethostbyname(socket.gethostname()), "status": None, "http_code": None})
         self.cur.execute("SELECT * FROM narocniki WHERE id = %s" % str(id))
         row = self.cur.fetchall()
 
@@ -154,7 +155,7 @@ class Narocnik(Resource):
                 uporabnisko_ime = d["uporabnisko_ime"].strip(),
                 telefonska_stevilka = d["telefonska_stevilka"].strip())
 
-        l.info("Vrni narocnika z ID %s" % str(id), extra={"name_of_service": "Uporabniki", "crud_method": "get", "directions": "out"})
+        l.info("Vrni narocnika z ID %s" % str(id), extra={"name_of_service": "Uporabniki", "crud_method": "get", "directions": "out", "ip_node": socket.gethostbyname(socket.gethostname()), "status": "success", "http_code": 200})
 
         return narocnik, 200
 
@@ -166,11 +167,12 @@ class Narocnik(Resource):
         """
         Posodobi podatke narocnika glede na ID
         """
-        l.info("Posodobi narocnika z ID %s" % str(id), extra={"name_of_service": "Uporabniki", "crud_method": "put", "directions": "in"})
+        l.info("Posodobi narocnika z ID %s" % str(id), extra={"name_of_service": "Uporabniki", "crud_method": "put", "directions": "in", "ip_node": socket.gethostbyname(socket.gethostname()), "status": None, "http_code": None})
         self.cur.execute("SELECT * FROM narocniki WHERE id = %s" % str(id))
         row = self.cur.fetchall()
 
         if(len(row) == 0):
+            l.warning("Narocnik z ID %s ne obstaja" % str(id), extra={"name_of_service": "Uporabniki", "crud_method": "put", "directions": "out", "ip_node": socket.gethostbyname(socket.gethostname()), "status": "fail", "http_code": 404})
             abort(404)
 
         args = self.parser.parse_args()
@@ -190,7 +192,7 @@ class Narocnik(Resource):
                 uporabnisko_ime = d["uporabnisko_ime"].strip(),
                 telefonska_stevilka = d["telefonska_stevilka"].strip())
 
-        l.info("Vrni posodobljenega narocnika z ID %s" % str(id), extra={"name_of_service": "Uporabniki", "crud_method": "put", "directions": "out"})
+        l.info("Vrni posodobljenega narocnika z ID %s" % str(id), extra={"name_of_service": "Uporabniki", "crud_method": "put", "directions": "out", "ip_node": socket.gethostbyname(socket.gethostname()), "status": "success", "http_code": 200})
 
         return narocnik, 200
 
@@ -201,7 +203,7 @@ class Narocnik(Resource):
         """
         Izbriši narocnika glede na ID
         """
-        l.info("Izbrisi narocnika z ID %s" % str(id), extra={"name_of_service": "Uporabniki", "crud_method": "delete", "directions": "in"})
+        l.info("Izbrisi narocnika z ID %s" % str(id), extra={"name_of_service": "Uporabniki", "crud_method": "delete", "directions": "in", "ip_node": socket.gethostbyname(socket.gethostname()), "status": None, "http_code": None})
         self.cur.execute("SELECT * FROM narocniki")
         rows = self.cur.fetchall()
         ids = []
@@ -209,13 +211,13 @@ class Narocnik(Resource):
             ids.append(row[0])
 
         if id not in ids:
-            l.warning("Narocnik z ID %s ni bil najden in ne bo izbrisan" % str(id), extra={"name_of_service": "Uporabniki", "crud_method": "delete", "directions": "out"})
+            l.warning("Narocnik z ID %s ni bil najden in ne bo izbrisan" % str(id), extra={"name_of_service": "Uporabniki", "crud_method": "delete", "directions": "out", "ip_node": socket.gethostbyname(socket.gethostname()), "status": "fail", "http_code": 404})
             abort(404)
         else:
             self.cur.execute("DELETE FROM narocniki WHERE id = %s" % str(id))
             self.conn.commit()
 
-        l.info("Narocnik z ID %s izbrisan" % str(id), extra={"name_of_service": "Uporabniki", "crud_method": "delete", "directions": "out"})
+        l.info("Narocnik z ID %s izbrisan" % str(id), extra={"name_of_service": "Uporabniki", "crud_method": "delete", "directions": "out", "ip_node": socket.gethostbyname(socket.gethostname()), "status": "success", "http_code": 204})
 
         return 204
 
@@ -251,7 +253,7 @@ class ListNarocnikov(Resource):
         """
         Vrni vse narocnike
         """
-        l.info("Zahtevaj vse narocnike", extra={"name_of_service": "Uporabniki", "crud_method": "get", "directions": "in"})
+        l.info("Zahtevaj vse narocnike", extra={"name_of_service": "Uporabniki", "crud_method": "get", "directions": "in", "ip_node": socket.gethostbyname(socket.gethostname()), "status": None, "http_code": None})
         self.cur.execute("SELECT * FROM narocniki")
         rows = self.cur.fetchall()
         ds = {}
@@ -272,7 +274,7 @@ class ListNarocnikov(Resource):
                     telefonska_stevilka = ds[d]["telefonska_stevilka"].strip())
             narocniki.append(narocnik)
 
-        l.info("Vrni vse narocnike", extra={"name_of_service": "Uporabniki", "crud_method": "get", "directions": "out"})
+        l.info("Vrni vse narocnike", extra={"name_of_service": "Uporabniki", "crud_method": "get", "directions": "out", "ip_node": socket.gethostbyname(socket.gethostname()), "status": "success", "http_code": 200})
             
         return {"narocniki": narocniki}, 200 
 
@@ -283,7 +285,7 @@ class ListNarocnikov(Resource):
         """
         Dodaj novega narocnika
         """
-        l.info("Dodaj novega narocnika", extra={"name_of_service": "Uporabniki", "crud_method": "post", "directions": "in"})
+        l.info("Dodaj novega narocnika", extra={"name_of_service": "Uporabniki", "crud_method": "post", "directions": "in", "ip_node": socket.gethostbyname(socket.gethostname()), "status": None, "http_code": None})
         args = self.parser.parse_args()
         values = []
         for a in args.values():
@@ -298,7 +300,7 @@ class ListNarocnikov(Resource):
                 uporabnisko_ime = args["uporabnisko_ime"].strip(),
                 telefonska_stevilka = args["telefonska_stevilka"].strip())
 
-        l.info("Nov narocnik dodan", extra={"name_of_service": "Uporabniki", "crud_method": "post", "directions": "out"})
+        l.info("Nov narocnik dodan", extra={"name_of_service": "Uporabniki", "crud_method": "post", "directions": "out", "ip_node": socket.gethostbyname(socket.gethostname()), "status": "success", "http_code": 201})
 
         return narocnik, 201
 
