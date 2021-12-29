@@ -1,10 +1,10 @@
-from flask import Flask
+from flask import Flask, request
 from flask_restx import Resource, Api, fields, reqparse, abort, marshal, marshal_with
 from configparser import ConfigParser
 import psycopg2 as pg
 from psycopg2 import extensions
 from healthcheck import HealthCheck, EnvironmentDump
-from prometheus_flask_exporter import PrometheusMetrics
+from prometheus_flask_exporter import PrometheusMetrics, RESTfulPrometheusMetrics
 from prometheus_client import Counter, generate_latest
 from fluent import sender, handler
 import logging
@@ -72,8 +72,10 @@ posodobiModel = api.model('PosodobiNarocnika', {
     "vrednost": fields.String
 })
 
+metrics = RESTfulPrometheusMetrics(app, api)
+by_path_counter = metrics.counter('by_path_counter', 'Request count by request paths', labels={'path': lambda: request.path})
+
 def create_app():
-    metrics = PrometheusMetrics(app)
     health = HealthCheck()
     envdump = EnvironmentDump()
     health.add_check(check_database_connection)
@@ -134,6 +136,7 @@ class Narocnik(Resource):
 
         super(Narocnik, self).__init__(*args, **kwargs)
 
+    @by_path_counter
     @marshal_with(narocnikApiModel)
     @ns.response(404, 'Narocnik ni najden')
     @ns.doc("Vrni narocnika")
