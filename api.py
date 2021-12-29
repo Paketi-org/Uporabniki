@@ -36,7 +36,7 @@ custom_format = {
 }
 logging.basicConfig(level=logging.INFO)
 l = logging.getLogger('fluent.test')
-h = handler.FluentHandler('Uporabniki', host=app.config["FLUENT_IP"], port=app.config["FLUENT_PORT"])
+h = handler.FluentHandler('Uporabniki', host=app.config["FLUENT_IP"], port=int(app.config["FLUENT_PORT"]))
 formatter = handler.FluentRecordFormatter(custom_format)
 h.setFormatter(formatter)
 l.addHandler(h)
@@ -305,6 +305,6 @@ class ListNarocnikov(Resource):
 
 if __name__ == "__main__":
     create_app()
-    app.run(host="0.0.0.0", port=5003)
+    app.run(host="0.0.0.0", port=5000)
     #logger.close()
     h.close()
