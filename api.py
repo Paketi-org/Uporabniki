@@ -30,6 +30,10 @@ def load_configurations():
 
 load_configurations()
 
+@app.route("/")
+def welcome():
+    return "Welcome!"
+
 custom_format = {
   'name': '%(name_of_service)s',
   'method': '%(crud_method)s',
