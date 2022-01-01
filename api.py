@@ -47,12 +47,6 @@ l.addHandler(h)
 
 l.info("Setting up Uporabniki App", extra={"name_of_service": "Uporabniki", "crud_method": None, "directions": None, "ip_node": None, "status": None, "http_code": None})
 
-
-def connect_to_database():
-    return pg.connect(database=app.config["DATABASE_NAME"], user=app.config["DATABASE_USER"], password=app.config["DATABASE_PASSWORD"],
-                      port=app.config["DATABASE_PORT"], host=app.config["DATABASE_IP"])
-
-
 api = Api(app, version='1.0', doc='/openapi', title='Narocniki API', description='Abstrakt Narocniki API',default_swagger_filename='openapi.json', default='Uporabniki CRUD', default_label='koncne tocke in operacije')
 narocnikApiModel = api.model('ModelNarocnika', {
     "id": fields.Integer(readonly=True, description='ID narocnika'),
@@ -71,16 +65,9 @@ posodobiModel = api.model('PosodobiNarocnika', {
 metrics = RESTfulPrometheusMetrics(app, api)
 by_path_counter = metrics.counter('by_path_counter', 'Request count by request paths', labels={'path': lambda: request.path})
 
-def create_app():
-    health = HealthCheck()
-    envdump = EnvironmentDump()
-    health.add_check(check_database_connection)
-    envdump.add_section("application", application_data)
-    app.add_url_rule("/healthcheck", "healthcheck", view_func=lambda: health.run())
-    app.add_url_rule("/environment", "environment", view_func=lambda: envdump.run())
-    api.add_resource(ListNarocnikov, "/narocniki")
-    api.add_resource(Narocnik, "/narocniki/<int:id>")
-    l.info("Uporabniki App pripravljen", extra={"name_of_service": "Uporabniki", "crud_method": None, "directions": None, "ip_node": None, "status": None, "http_code": None})
+def connect_to_database():
+    return pg.connect(database=app.config["PGDATABASE"], user=app.config["PGUSER"], password=app.config["PGPASSWORD"],
+                      port=app.config["DATABASE_PORT"], host=app.config["DATABASE_IP"])
 
 # Kubernetes Liveness Probe (200-399 healthy, 400-599 sick)
 def check_database_connection():
@@ -308,8 +295,15 @@ class ListNarocnikov(Resource):
         return narocnik, 201
 
 
-if __name__ == "__main__":
-    create_app()
-    app.run(host="0.0.0.0", port=5000)
-    #logger.close()
-    h.close()
+health = HealthCheck()
+envdump = EnvironmentDump()
+health.add_check(check_database_connection)
+envdump.add_section("application", application_data)
+app.add_url_rule("/healthcheck", "healthcheck", view_func=lambda: health.run())
+app.add_url_rule("/environment", "environment", view_func=lambda: envdump.run())
+api.add_resource(ListNarocnikov, "/narocniki")
+api.add_resource(Narocnik, "/narocniki/<int:id>")
+l.info("Uporabniki App pripravljen", extra={"name_of_service": "Uporabniki", "crud_method": None, "directions": None, "ip_node": None, "status": None, "http_code": None})
+
+app.run(host="0.0.0.0", port=5003)
+h.close()

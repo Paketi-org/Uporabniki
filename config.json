@@ -1,9 +1,9 @@
 {
     "DATABASE_IP": "172.25.1.2",
     "DATABASE_PORT": 5432,
-    "DATABASE_NAME": "paketiorg",
-    "DATABASE_USER": "postgres",
-    "DATABASE_PASSWORD": "postgres",
+    "PGDATABASE": "paketiorg",
+    "PGUSER": "postgres",
+    "PGPASSWORD": "postgres",
     "FLUENT_IP": "172.25.1.8",
     "FLUENT_PORT": 9880
 }
