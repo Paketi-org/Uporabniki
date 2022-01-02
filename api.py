@@ -14,7 +14,6 @@ import os
 import subprocess
 import socket
 
-# TODO: Put version in config file
 app = Flask(__name__)
 
 # Load configurations from the config file
@@ -136,6 +135,7 @@ class Narocnik(Resource):
         row = self.cur.fetchall()
 
         if(len(row) == 0):
+            l.warning("Narocnik z ID %s ni bil najden in ne bo izbrisan" % str(id), extra={"name_of_service": "Uporabniki", "crud_method": "get", "directions": "out", "ip_node": socket.gethostbyname(socket.gethostname()), "status": "fail", "http_code": 404})
             abort(404)
 
         d = {}
