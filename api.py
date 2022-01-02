@@ -70,7 +70,7 @@ by_path_counter = metrics.counter('by_path_counter', 'Request count by request p
 
 def connect_to_database():
     return pg.connect(database=app.config["PGDATABASE"], user=app.config["PGUSER"], password=app.config["PGPASSWORD"],
-                      port=app.config["DATABASE_PORT"], host=app.config["DATABASE_IP"])
+                      port=app.config["DATABASE_PORT"], host=app.config["DATABASE_IP"], connect_timeout=3)
 
 # Kubernetes Liveness Probe (200-399 healthy, 400-599 sick)
 def check_database_connection():

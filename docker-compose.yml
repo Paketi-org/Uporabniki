@@ -5,12 +5,12 @@ services:
       ports: 
       - "5432:5432"
       environment:
-      - POSTGRES_USER=${PGUSER}
-      - POSTGRES_DB=${PGDATABASE}
-      - POSTGRES_PASSWORD=${PGPASSWORD}
+      - POSTGRES_USER=paketiorg
+      - POSTGRES_DB=postgres
+      - POSTGRES_PASSWORD=postgres
       networks:
          node_net:
-            ipv4_address: ${PGHOST}
+            ipv4_address: 172.27.1.13
    app:
       image: "tp7220/uporabniki:latest"
       ports:
