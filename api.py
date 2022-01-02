@@ -42,7 +42,7 @@ custom_format = {
   'code': '%(http_code)s',
 }
 logging.basicConfig(level=logging.INFO)
-l = logging.getLogger('fluent.test')
+l = logging.getLogger('Uporabniki')
 h = handler.FluentHandler('Uporabniki', host=app.config["FLUENT_IP"], port=int(app.config["FLUENT_PORT"]))
 formatter = handler.FluentRecordFormatter(custom_format)
 h.setFormatter(formatter)
