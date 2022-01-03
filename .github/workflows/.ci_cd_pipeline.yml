@@ -24,6 +24,10 @@ jobs:
     - name: Run app
       run: docker-compose up -d
 
+    - name: Sleep for 30 seconds
+      run: sleep 30s
+      shell: bash
+
     - name: Run python unittests
       run: pipenv run pytest
 
