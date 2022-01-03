@@ -22,7 +22,7 @@ def load_configurations():
 
     with open('config.json') as json_file:
         data = json.load(json_file)
-        # Override variables defined in the environment over the ones from the config file
+        # Override variables defined in the config file with the ones defined in the environment(if set)
         for item in data:
             if os.environ.get(item):
                 app.config[item] = os.environ.get(item)
