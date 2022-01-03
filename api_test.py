@@ -5,7 +5,7 @@ import json
 class TestAPI(unittest.TestCase):
 
     def setUp(self):
-        self.BASE = "http://localhost:5003/"
+        self.BASE = "http://localhost:5003"
         self.maxDiff = None
 
     def test_1_post_narocniki(self):
