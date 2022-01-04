@@ -226,9 +226,9 @@ class ListNarocnikov(Resource):
         else:
             self.cur.execute('''CREATE TABLE narocniki (
                                 id INT NOT NULL,
-                                ime CHAR(10),
-                                priimek CHAR(15),
-                                uporabnisko_ime CHAR(10),
+                                ime CHAR(20),
+                                priimek CHAR(20),
+                                uporabnisko_ime CHAR(20),
                                 telefonska_stevilka CHAR(20)
                              )''')
 
