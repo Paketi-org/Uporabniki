@@ -23,6 +23,7 @@ flask-restx = "*"
 grpcio = "*"
 grpcio-tools = "*"
 fluent-logger = "*"
+black = "*"
 
 [dev-packages]
 

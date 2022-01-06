@@ -81,6 +81,7 @@ narocnikApiModel = api.model(
         "id": fields.Integer(readonly=True, description="ID narocnika"),
         "ime": fields.String(readonly=True, description="Ime narocnika"),
         "priimek": fields.String(readonly=True, description="Priimek narocnika"),
+        "ocena": fields.String(readonly=True, description="Ocena narocnika"),
         "uporabnisko_ime": fields.String(
             readonly=True, description="Uporabnisko ime narocnika"
         ),
@@ -91,6 +92,21 @@ narocnikApiModel = api.model(
 )
 narocnikiApiModel = api.model(
     "ModelNarocnikov", {"narocniki": fields.List(fields.Nested(narocnikApiModel))}
+)
+ocenaApiModel = api.model(
+    "OcenaNarocnika",
+    {
+        "id": fields.Integer(readonly=True, description="ID narocnika"),
+        "ime": fields.String(readonly=True, description="Ime narocnika"),
+        "priimek": fields.String(readonly=True, description="Priimek narocnika"),
+        "ocena": fields.String(readonly=True, description="Ocena narocnika"),
+        "mesto": fields.String(
+            readonly=True, description="Mesto narocnika"
+        ),
+    },
+)
+oceneApiModel = api.model(
+    "LestvicaNarocnikov", {"narocniki": fields.List(fields.Nested(ocenaApiModel))}
 )
 ns = api.namespace(
     "Uporabniki CRUD", description="Uporabniki koncne tocke in operacije"
@@ -160,18 +176,28 @@ def application_data():
 
 
 class NarocnikModel:
-    def __init__(self, id, ime, priimek, uporabnisko_ime, telefonska_stevilka):
+    def __init__(self, id, ime, priimek, ocena, uporabnisko_ime, telefonska_stevilka):
         self.id = id
         self.ime = ime
         self.priimek = priimek
+        self.ocena = ocena
         self.uporabnisko_ime = uporabnisko_ime
         self.telefonska_stevilka = telefonska_stevilka
+
+class OcenaModel:
+    def __init__(self, id, ime, priimek, ocena, mesto):
+        self.id = id
+        self.ime = ime
+        self.priimek = priimek
+        self.ocena = ocena
+        self.mesto = mesto
 
 
 narocnikiPolja = {
     "id": fields.Integer,
     "ime": fields.String,
     "priimek": fields.String,
+    "ocena": fields.String,
     "uporabnisko_ime": fields.String,
     "telefonska_stevilka": fields.String,
 }
@@ -187,6 +213,7 @@ class Narocnik(Resource):
         self.parser.add_argument("id", type=int)
         self.parser.add_argument("ime", type=str)
         self.parser.add_argument("priimek", type=str)
+        self.parser.add_argument("ocena", type=str)
         self.parser.add_argument("uporabnisko_ime", type=str)
         self.parser.add_argument("telefonska_stevilka", type=str)
         self.parser.add_argument("atribut", type=str)
@@ -238,6 +265,7 @@ class Narocnik(Resource):
             id=d["id"],
             ime=d["ime"].strip(),
             priimek=d["priimek"].strip(),
+            ocena=d["ocena"].strip(),
             uporabnisko_ime=d["uporabnisko_ime"].strip(),
             telefonska_stevilka=d["telefonska_stevilka"].strip(),
         )
@@ -310,6 +338,7 @@ class Narocnik(Resource):
             id=d["id"],
             ime=d["ime"].strip(),
             priimek=d["priimek"].strip(),
+            ocena=d["ocena"].strip(),
             uporabnisko_ime=d["uporabnisko_ime"].strip(),
             telefonska_stevilka=d["telefonska_stevilka"].strip(),
         )
@@ -401,6 +430,7 @@ class ListNarocnikov(Resource):
                                 id INT NOT NULL,
                                 ime CHAR(20),
                                 priimek CHAR(20),
+                                ocena CHAR(20),
                                 uporabnisko_ime CHAR(20),
                                 telefonska_stevilka CHAR(20)
                              )"""
@@ -415,6 +445,9 @@ class ListNarocnikov(Resource):
         )
         self.parser.add_argument(
             "priimek", type=str, required=True, help="Priimek naročnika je obvezen"
+        )
+        self.parser.add_argument(
+            "ocena", type=str, required=True, help="Ocena naročnika je obvezna"
         )
         self.parser.add_argument(
             "uporabnisko_ime",
@@ -463,6 +496,7 @@ class ListNarocnikov(Resource):
                 id=ds[d]["id"],
                 ime=ds[d]["ime"].strip(),
                 priimek=ds[d]["priimek"].strip(),
+                ocena=ds[d]["ocena"].strip(),
                 uporabnisko_ime=ds[d]["uporabnisko_ime"].strip(),
                 telefonska_stevilka=ds[d]["telefonska_stevilka"].strip(),
             )
@@ -505,8 +539,8 @@ class ListNarocnikov(Resource):
         for a in args.values():
             values.append(a)
         self.cur.execute(
-            """INSERT INTO {0} (id, ime, priimek, uporabnisko_ime, telefonska_stevilka)
-                VALUES ({1}, '{2}', '{3}', '{4}', '{5}')""".format(
+            """INSERT INTO {0} (id, ime, priimek, ocena, uporabnisko_ime, telefonska_stevilka)
+                VALUES ({1}, '{2}', '{3}', '{4}', '{5}', '{6}')""".format(
                 "narocniki", *values
             )
         )
@@ -515,6 +549,7 @@ class ListNarocnikov(Resource):
             id=args["id"],
             ime=args["ime"].strip(),
             priimek=args["priimek"].strip(),
+            ocena=args["ocena"].strip(),
             uporabnisko_ime=args["uporabnisko_ime"].strip(),
             telefonska_stevilka=args["telefonska_stevilka"].strip(),
         )
@@ -533,6 +568,87 @@ class ListNarocnikov(Resource):
 
         return narocnik, 201
 
+class LestvicaUporabnikov(Resource):
+    def __init__(self, *args, **kwargs): 
+        self.table_name = "narocniki"
+        self.conn = connect_to_database()
+        self.cur = self.conn.cursor()
+        self.cur.execute(
+            "select exists(select * from information_schema.tables where table_name=%s)",
+            (self.table_name,),
+        )
+        if self.cur.fetchone()[0]:
+            print("Table {0} already exists".format(self.table_name))
+        else:
+            self.cur.execute(
+                """CREATE TABLE narocniki (
+                                id INT NOT NULL,
+                                ime CHAR(20),
+                                priimek CHAR(20),
+                                ocena CHAR(20),
+                                uporabnisko_ime CHAR(20),
+                                telefonska_stevilka CHAR(20)
+                             )"""
+            )
+        super(LestvicaUporabnikov, self).__init__(*args, **kwargs)
+
+    @ns.marshal_list_with(oceneApiModel)
+    @ns.doc("Vrni lestvico narocnikov")
+    def get(self):
+        """
+        Vrni lestvico narocnikov
+        """
+        l.info(
+            "Zahtevaj lestvico narocnikov",
+            extra={
+                "name_of_service": "Ocene",
+                "crud_method": "get",
+                "directions": "in",
+                "ip_node": socket.gethostbyname(socket.gethostname()),
+                "status": None,
+                "http_code": None,
+            },
+        )
+        self.cur.execute("SELECT * FROM narocniki")
+        rows = self.cur.fetchall()
+        ds = {}
+        i = 0
+        for row in rows:
+            ds[i] = {}
+            for el, k in zip(row, narocnikiPolja):
+                ds[i][k] = el
+            i += 1
+
+        # Uredi jih po uspešnosti
+        ds = {k: v for k, v in sorted(ds.items(), key=lambda item: int(item[1]["ocena"]), reverse=True)}
+
+        lestvica = []
+        i = 1
+        for d in ds:
+            ocena = OcenaModel(
+                id=ds[d]["id"],
+                ime=ds[d]["ime"].strip(),
+                priimek=ds[d]["priimek"].strip(),
+                ocena=ds[d]["ocena"].strip(),
+                mesto="%s.mesto" % str(i),
+            )
+            lestvica.append(ocena)
+            i += 1
+
+        l.info(
+            "Vrni lestvico narocnikov",
+            extra={
+                "name_of_service": "Ocene",
+                "crud_method": "get",
+                "directions": "out",
+                "ip_node": socket.gethostbyname(socket.gethostname()),
+                "status": "success",
+                "http_code": 200,
+            },
+        )
+
+        return {"narocniki": lestvica}, 200
+     
 
 health = HealthCheck()
 envdump = EnvironmentDump()
@@ -541,6 +657,7 @@ envdump.add_section("application", application_data)
 app.add_url_rule("/healthcheck", "healthcheck", view_func=lambda: health.run())
 app.add_url_rule("/environment", "environment", view_func=lambda: envdump.run())
 api.add_resource(ListNarocnikov, "/narocniki")
+api.add_resource(LestvicaUporabnikov, "/lestvica")
 api.add_resource(Narocnik, "/narocniki/<int:id>")
 l.info(
     "Uporabniki App pripravljen",
