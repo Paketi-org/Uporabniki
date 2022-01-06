@@ -279,7 +279,7 @@ class Narocnik(Resource):
 
         if len(row) == 0:
             l.warning(
-                "Narocnik z ID %s ni bil najden in ne bo izbrisan" % str(id),
+                "Narocnik z ID %s ni bil najden" % str(id),
                 extra={
                     "name_of_service": "Uporabniki",
                     "crud_method": "get",
