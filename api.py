@@ -13,6 +13,7 @@ import json
 import os
 import subprocess
 import socket
+import random
 
 app = Flask(__name__)
 
@@ -108,6 +109,17 @@ ocenaApiModel = api.model(
 oceneApiModel = api.model(
     "LestvicaNarocnikov", {"narocniki": fields.List(fields.Nested(ocenaApiModel))}
 )
+nagradaApiModel = api.model(
+    "NagradaNarocnika",
+    {
+        "id": fields.Integer(readonly=True, description="ID narocnika"),
+        "ime": fields.String(readonly=True, description="Ime narocnika"),
+        "priimek": fields.String(readonly=True, description="Priimek narocnika"),
+        "nagrada": fields.String(
+            readonly=True, description="Nagrada narocnika"
+        ),
+    },
+)
 ns = api.namespace(
     "Uporabniki CRUD", description="Uporabniki koncne tocke in operacije"
 )
@@ -192,6 +204,12 @@ class OcenaModel:
         self.ocena = ocena
         self.mesto = mesto
 
+class NagradaModel:
+    def __init__(self, id, ime, priimek, nagrada):
+        self.id = id
+        self.ime = ime
+        self.priimek = priimek
+        self.nagrada = nagrada
 
 narocnikiPolja = {
     "id": fields.Integer,
@@ -650,6 +668,82 @@ class LestvicaUporabnikov(Resource):
 
         return {"narocniki": lestvica}, 200
      
+class Nagrajenec(Resource):
+    def __init__(self, *args, **kwargs): 
+        self.table_name = "narocniki"
+        self.conn = connect_to_database()
+        self.cur = self.conn.cursor()
+        self.nagrade = ['cokolada', 'zastonj vožnja', 'bonbon', 'nakupovalni bon', '20% popusta na naslednji prevoz', '40% popusta na naslednji prevoz', '60% popusta na naslednji prevoz', 'počitnice v Maroku']
+        self.cur.execute(
+            "select exists(select * from information_schema.tables where table_name=%s)",
+            (self.table_name,),
+        )
+        if self.cur.fetchone()[0]:
+            print("Table {0} already exists".format(self.table_name))
+        else:
+            self.cur.execute(
+                """CREATE TABLE narocniki (
+                                id INT NOT NULL,
+                                ime CHAR(20),
+                                priimek CHAR(20),
+                                ocena CHAR(20),
+                                uporabnisko_ime CHAR(20),
+                                telefonska_stevilka CHAR(20)
+                             )"""
+            )
+        super(Nagrajenec, self).__init__(*args, **kwargs)
+
+    @ns.marshal_list_with(nagradaApiModel)
+    @ns.doc("Vrni nagrajenca")
+    def get(self):
+        """
+        Vrni nagrajenca 
+        """
+        l.info(
+            "Izžrebaj nagrajenca",
+            extra={
+                "name_of_service": "Ocene",
+                "crud_method": "get",
+                "directions": "in",
+                "ip_node": socket.gethostbyname(socket.gethostname()),
+                "status": None,
+                "http_code": None,
+            },
+        )
+        self.cur.execute("SELECT * FROM narocniki")
+        rows = self.cur.fetchall()
+        ds = {}
+        i = 0
+        for row in rows:
+            ds[i] = {}
+            for el, k in zip(row, narocnikiPolja):
+                ds[i][k] = el
+            i += 1
+
+        na = random.choice(self.nagrade) 
+        # Uredi jih po uspešnosti
+        d = random.choice(list(ds.values()))
+
+        nagrada = NagradaModel(
+            id=d["id"],
+            ime=d["ime"].strip(),
+            priimek=d["priimek"].strip(),
+            nagrada=na,
+        )
+
+        l.info(
+            "Vrni nagrajenca",
+            extra={
+                "name_of_service": "Ocene",
+                "crud_method": "get",
+                "directions": "out",
+                "ip_node": socket.gethostbyname(socket.gethostname()),
+                "status": "success",
+                "http_code": 200,
+            },
+        )
+
+        return nagrada, 200
 
 health = HealthCheck()
 envdump = EnvironmentDump()
@@ -659,6 +753,7 @@ app.add_url_rule("/healthcheck", "healthcheck", view_func=lambda: health.run())
 app.add_url_rule("/environment", "environment", view_func=lambda: envdump.run())
 api.add_resource(ListNarocnikov, "/narocniki")
 api.add_resource(LestvicaUporabnikov, "/lestvica")
+api.add_resource(Nagrajenec, "/loto")
 api.add_resource(Narocnik, "/narocniki/<int:id>")
 l.info(
     "Uporabniki App pripravljen",
