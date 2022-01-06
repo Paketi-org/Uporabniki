@@ -625,15 +625,16 @@ class LestvicaUporabnikov(Resource):
         lestvica = []
         i = 1
         for d in ds:
-            ocena = OcenaModel(
-                id=ds[d]["id"],
-                ime=ds[d]["ime"].strip(),
-                priimek=ds[d]["priimek"].strip(),
-                ocena=ds[d]["ocena"].strip(),
-                mesto="%s.mesto" % str(i),
-            )
-            lestvica.append(ocena)
-            i += 1
+            if int(ds[d]["ocena"].strip()) != -1:
+                ocena = OcenaModel(
+                    id=ds[d]["id"],
+                    ime=ds[d]["ime"].strip(),
+                    priimek=ds[d]["priimek"].strip(),
+                    ocena=ds[d]["ocena"].strip(),
+                    mesto="%s.mesto" % str(i),
+                )
+                lestvica.append(ocena)
+                i += 1
 
         l.info(
             "Vrni lestvico narocnikov",
