@@ -225,6 +225,10 @@ class Narocnik(Resource):
         self.table_name = "narocniki"
         self.conn = connect_to_database()
         self.cur = self.conn.cursor()
+        self.cur.execute(
+            "select exists(select * from information_schema.tables where table_name=%s)",
+            (self.table_name,),
+        )
         if self.cur.fetchone()[0]:
             print("Table {0} already exists".format(self.table_name))
         else:
