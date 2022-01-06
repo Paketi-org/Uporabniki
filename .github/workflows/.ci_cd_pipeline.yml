@@ -20,6 +20,7 @@ jobs:
          python -m pip install --upgrade pip
          pip install -U pipenv
          pipenv install pytest
+         pipenv install black
 
     - name: Run app
       run: docker-compose up -d
@@ -27,6 +28,9 @@ jobs:
     - name: Sleep for 30 seconds
       run: sleep 30s
       shell: bash
+
+    - name: Code static check
+      run: pipenv run black api.py
 
     - name: Run python unittests
       run: pipenv run pytest
