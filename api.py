@@ -289,7 +289,7 @@ class Narocnik(Resource):
                     "http_code": 404,
                 },
             )
-            abort(404)
+            abort(404, "Uporabnik ni bil najden!")
 
         d = {}
         for el, k in zip(row[0], narocnikiPolja):
