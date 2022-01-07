@@ -427,7 +427,7 @@ class Narocnik(Resource):
                     "http_code": 404,
                 },
             )
-            abort(404)
+            abort(404, "Uporabnik ni bil najden!")
         else:
             self.cur.execute("DELETE FROM narocniki WHERE id = %s" % str(id))
             self.conn.commit()
