@@ -4,8 +4,8 @@ from configparser import ConfigParser
 import psycopg2 as pg
 from psycopg2 import extensions
 from healthcheck import HealthCheck, EnvironmentDump
-from prometheus_flask_exporter import PrometheusMetrics, RESTfulPrometheusMetrics
-from prometheus_client import Counter, generate_latest
+#from prometheus_flask_exporter import PrometheusMetrics, RESTfulPrometheusMetrics
+from prometheus_client import Gauge, generate_latest
 from fluent import sender, handler
 import logging
 from time import time
@@ -36,6 +36,11 @@ load_configurations()
 def welcome():
     return "Welcome!"
 
+@app.route('/metrics')
+def metrics():
+    return generate_latest()
+
+g = Gauge('Stevilo_narocnikov', "Število narocnikov")
 
 custom_format = {
     "name": "%(name_of_service)s",
@@ -123,12 +128,7 @@ posodobiModel = api.model(
     "PosodobiNarocnika", {"atribut": fields.String, "vrednost": fields.String}
 )
 
-metrics = RESTfulPrometheusMetrics(app, api)
-by_path_counter = metrics.counter(
-    "by_path_counter",
-    "Request count by request paths",
-    labels={"path": lambda: request.path},
-)
+#metrics = RESTfulPrometheusMetrics(app, api)
 
 
 def connect_to_database():
@@ -255,7 +255,6 @@ class Narocnik(Resource):
 
         super(Narocnik, self).__init__(*args, **kwargs)
 
-    @by_path_counter
     @marshal_with(narocnikApiModel)
     @ns.response(404, "Narocnik ni najden")
     @ns.doc("Vrni narocnika")
@@ -432,6 +431,8 @@ class Narocnik(Resource):
             self.cur.execute("DELETE FROM narocniki WHERE id = %s" % str(id))
             self.conn.commit()
 
+        g.dec()
+
         l.info(
             "Narocnik z ID %s izbrisan" % str(id),
             extra={
@@ -557,6 +558,7 @@ class ListNarocnikov(Resource):
         """
         Dodaj novega narocnika
         """
+        g.inc()
         l.info(
             "Dodaj novega narocnika",
             extra={
